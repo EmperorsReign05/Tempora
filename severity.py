@@ -31,39 +31,69 @@ class Confidence(Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
 
-def calculate_global_suspicion(gap_durations: List[float], total_lines: int) -> Tuple[float, SystemStatus, Confidence]:
+def calculate_global_suspicion(gap_durations: List[float], total_lines: int, malformed_count: int = 0, max_gap_violations: int = 0, alibi_failures: int = 0) -> Tuple[float, SystemStatus, int, str]:
     """
-    Determine the overall risk level for the entire log file.
+    Determine the overall risk level and trustworthiness for the entire log file.
     
-    Formula:
-      score = (HIGH_gaps * 3 + MEDIUM_gaps * 2 + LOW_gaps * 1) / total_lines
-      
-    Returns a tuple of (suspicion_score, SystemStatus, Confidence)
+    Formula for Trust Score: Starts at 100%.
+      -2% per LOW gap
+      -5% per MEDIUM gap
+      -15% per HIGH gap
+      -20% per MAX REASONABLE GAP violation
+      -1% per 10 malformed lines
+      -50% if ANY Alibi Verification fails (Proof of tampering)
+
+    Returns:
+      (suspicion_score, SystemStatus, trust_percentage, reason)
     """
-    if not gap_durations or total_lines == 0:
-        return 0.0, SystemStatus.NORMAL, Confidence.HIGH
+    if total_lines == 0:
+        return 0.0, SystemStatus.NORMAL, 100, "Log file implies normal contiguous structure"
 
     # Tally severities
     high_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.HIGH)
     medium_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.MEDIUM)
     low_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.LOW)
     
-    # Explicit suspicion score formula
+    # Mathematical Confidence Degradation Model (Trust %)
+    trust = 100.0
+    trust -= (low_count * 2)
+    trust -= (medium_count * 5)
+    trust -= (high_count * 15)
+    trust -= (max_gap_violations * 20)
+    trust -= (malformed_count * 0.1) # 1% per 10 lines
+    
+    if alibi_failures > 0:
+        trust -= 50
+
+    trust = max(0, min(100, int(trust))) # Clamp 0 - 100
+
+    # Qualitative Reason construction
+    reasons = []
+    if alibi_failures > 0:
+        reasons.append(f"CRITICAL: {alibi_failures} Alibi Failures detected (Proven tampering)")
+    if high_count > 0:
+        reasons.append("Major timeline disruptions (HIGH gaps)")
+    if max_gap_violations > 0:
+        reasons.append(f"{max_gap_violations} instances of catastrophic timestamp inconsistency")
+    if malformed_count > (total_lines * 0.01):
+        reasons.append("Unusually high volume of malformed/corrupted lines")
+    
+    if not reasons and trust < 100:
+        reasons.append("Minor temporal inconsistencies degrading reliability")
+    elif not reasons:
+        reasons.append("Perfect contiguous structural integrity")
+
+    reason_str = " | ".join(reasons)
+
+    # Legacy Suspicion Score mapping to support existing code
     score = (high_count * 3 + medium_count * 2 + low_count * 1) / total_lines
     
-    # Determine risk classification and confidence
-    confidence = Confidence.LOW
-    
-    if high_count > 0 or score > 0.05:
-        # e.g., if 5% of lines are equivalent to a LOW severity drop, it's compromised
+    # Evaluate System Status natively off Trust and Evidence
+    if alibi_failures > 0 or trust < 50:
         status = SystemStatus.COMPROMISED
-        confidence = Confidence.HIGH if score > 0.1 else Confidence.MEDIUM
-    elif medium_count > 0 or score > 0.01:
-        # e.g., > 1% is suspicious
+    elif trust < 85:
         status = SystemStatus.SUSPICIOUS
-        confidence = Confidence.MEDIUM
     else:
         status = SystemStatus.NORMAL
-        confidence = Confidence.HIGH
         
-    return score, status, confidence
+    return score, status, trust, reason_str

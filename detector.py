@@ -19,6 +19,7 @@ class Gap:
     severity: Severity
     start_line_num: int
     end_line_num: int
+    alibi_evidence_count: int = 0
 
 class GapDetector:
     """

@@ -11,13 +11,15 @@ from utils import format_duration
 
 class Reporter:
     """Consolidates gaps and renders them in various formats."""
-    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, is_interactive: bool):
+    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, is_interactive: bool, malformed_count: int, max_gap_violations: int):
         self.gaps = gaps
         self.total_lines = total_lines
         self.file_start = file_start
         self.file_end = file_end
         self.threshold = threshold
         self.is_interactive = is_interactive
+        self.malformed_count = malformed_count
+        self.max_gap_violations = max_gap_violations
         self.gap_durations = [g.duration_seconds for g in self.gaps]
 
     def _generate_insights(self) -> List[str]:
@@ -52,7 +54,14 @@ class Reporter:
 
     def _generate_summary_dict(self) -> Dict[str, Any]:
         """Generate structured summary dictionary."""
-        score, status, confidence = calculate_global_suspicion(self.gap_durations, self.total_lines)
+        alibi_failures = sum(1 for g in self.gaps if g.alibi_evidence_count > 0)
+        score, status, trust, reason = calculate_global_suspicion(
+            self.gap_durations, 
+            self.total_lines, 
+            self.malformed_count, 
+            self.max_gap_violations, 
+            alibi_failures
+        )
         insights = self._generate_insights()
         
         return {
@@ -62,7 +71,8 @@ class Reporter:
             "longest_gap_formatted": format_duration(max(self.gap_durations)) if self.gap_durations else "0s",
             "suspicion_score": round(score, 4),
             "system_status": status.value,
-            "confidence_level": confidence.value,
+            "trust_percentage": trust,
+            "reason": reason,
             "insights": insights
         }
 
@@ -87,7 +97,12 @@ class Reporter:
             print(f"  Start:    {gap.start_time.strftime('%Y-%m-%d %H:%M:%S')} (Line {gap.start_line_num})")
             print(f"  End:      {gap.end_time.strftime('%Y-%m-%d %H:%M:%S')} (Line {gap.end_line_num})")
             print(f"  Duration: {format_duration(gap.duration_seconds)}")
-            print(f"  Severity: {gap.severity.value}\n")
+            print(f"  Severity: {gap.severity.value}")
+            
+            if gap.alibi_evidence_count > 0:
+                print(f"  [!] ALIBI FAILURE: Secondary log confirmed {gap.alibi_evidence_count} events during this silent gap.")
+                print(f"      -> Confirms intentional log deletion/tampering.")
+            print("")
 
     def print_summary(self):
         """Print summary metrics."""
@@ -99,7 +114,8 @@ class Reporter:
             print(f"Longest Gap:         {summary['longest_gap_formatted']}")
         print(f"Suspicion Score:     {summary['suspicion_score']}")
         print(f"System Status:       {summary['system_status']}")
-        print(f"Confidence Level:    {summary['confidence_level']}")
+        print(f"Trust Confidence:    {summary['trust_percentage']}%")
+        print(f"Reason:              {summary['reason']}")
         
         print("\n--- Intelligent Insights ---")
         for idx, insight in enumerate(summary['insights'], 1):
