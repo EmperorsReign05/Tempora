@@ -115,7 +115,7 @@ def main():
             print_warning(f"Failed to read Alibi log {args.alibi}: {e}")
 
     # Output Reporting Phase
-    reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, args.interactive, malformed_count, max_gap_violations)
+    reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, args.interactive, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries))
     
     if args.format == "json":
         reporter.print_json()

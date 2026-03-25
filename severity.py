@@ -31,7 +31,7 @@ class Confidence(Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
 
-def calculate_global_suspicion(gap_durations: List[float], total_lines: int, malformed_count: int = 0, max_gap_violations: int = 0, alibi_failures: int = 0) -> Tuple[float, SystemStatus, int, str]:
+def calculate_global_suspicion(gap_durations: List[float], total_lines: int, malformed_count: int = 0, max_gap_violations: int = 0, alibi_failures: int = 0, causality_count: int = 0, forgery_count: int = 0) -> Tuple[float, SystemStatus, int, str]:
     """
     Determine the overall risk level and trustworthiness for the entire log file.
     
@@ -40,6 +40,8 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
       -5% per MEDIUM gap
       -15% per HIGH gap
       -20% per MAX REASONABLE GAP violation
+      -30% per CAUSALITY VIOLATION (Time Travel / NTP Spoofing)
+      -20% per SHANNON ENTROPY FORGERY (Scripted synthetics)
       -1% per 10 malformed lines
       -50% if ANY Alibi Verification fails (Proof of tampering)
 
@@ -60,6 +62,8 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
     trust -= (medium_count * 5)
     trust -= (high_count * 15)
     trust -= (max_gap_violations * 20)
+    trust -= (causality_count * 30)
+    trust -= (forgery_count * 20)
     trust -= (malformed_count * 0.1) # 1% per 10 lines
     
     if alibi_failures > 0:
@@ -71,6 +75,10 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
     reasons = []
     if alibi_failures > 0:
         reasons.append(f"CRITICAL: {alibi_failures} Alibi Failures detected (Proven tampering)")
+    if causality_count > 0:
+        reasons.append(f"CAUSALITY VIOLATION: {causality_count} reverse-time jumps detected (Evidence of NTP Spoofing/Timestamp Backdating)")
+    if forgery_count > 0:
+        reasons.append(f"SYNTHETIC FORGERY: {forgery_count} instances of Shannon Entropy collapse (Scripted log injection)")
     if high_count > 0:
         reasons.append("Major timeline disruptions (HIGH gaps)")
     if max_gap_violations > 0:

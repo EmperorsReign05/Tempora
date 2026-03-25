@@ -4,11 +4,31 @@ Engine for detecting suspicious gaps in sequential log lines.
 from dataclasses import dataclass
 from typing import Iterator, List
 from datetime import datetime
+from collections import Counter
+import math
 
 from parser import LogLine
 from severity import Severity, calculate_severity
 from config import DEFAULT_CONFIG
 from utils import print_warning
+
+@dataclass
+class CausalityViolation:
+    timestamp_before: datetime
+    timestamp_after: datetime
+    line_num: int
+
+@dataclass
+class Forgery:
+    timestamp: datetime
+    line_num: int
+    entropy: float
+    raw_text: str
+
+def calculate_entropy(text: str) -> float:
+    if not text: return 0.0
+    p, lns = Counter(text), float(len(text))
+    return -sum(count/lns * math.log2(count/lns) for count in p.values())
 
 @dataclass
 class Gap:
@@ -34,6 +54,10 @@ class GapDetector:
         
         # Stats accumulation
         self.total_lines_processed = 0
+        self.causality_violations: List[CausalityViolation] = []
+        self.forgeries: List[Forgery] = []
+        self.rolling_entropy = 0.0
+        self.entropy_count = 0
 
     def _is_in_safe_interval(self, start: datetime, end: datetime) -> bool:
         """Check if a given gap falls entirely within a known safe interval."""
@@ -49,10 +73,36 @@ class GapDetector:
         """
         self.total_lines_processed += 1
         
+        # --- SHANNON ENTROPY FORGERY CATCHER ---
+        # Strip the timestamp (first ~20 chars) to measure actual message entropy
+        payload_text = log_line.raw_payload[20:]
+        text_entropy = calculate_entropy(payload_text)
+        
+        # Minimum baseline of 50 lines built up, restrict to substantial log lines
+        is_forged = False
+        if self.entropy_count > 50 and len(payload_text) > 20:
+             # Substantial drops (>25%) from the server's running baseline indicate scripted filler
+             if text_entropy < (self.rolling_entropy * 0.75) or text_entropy < 3.0: 
+                 self.forgeries.append(Forgery(log_line.timestamp, log_line.line_number, text_entropy, log_line.raw_payload[:60]))
+                 is_forged = True
+                 
+        # Defend against "Data Poisoning Attacks": 
+        # Only adapt the mathematical baseline if the line is organically valid.
+        if not is_forged:
+            self.rolling_entropy = (self.rolling_entropy * self.entropy_count + text_entropy) / (self.entropy_count + 1)
+        
+        self.entropy_count += 1
+        
         if self.last_log_line:
             # Calculate time difference
             delta = log_line.timestamp - self.last_log_line.timestamp
             duration = delta.total_seconds()
+            
+            # --- CAUSALITY VIOLATION (TIME TRAVEL) ---
+            if duration < 0:
+                self.causality_violations.append(CausalityViolation(self.last_log_line.timestamp, log_line.timestamp, log_line.line_number))
+                self.last_log_line = log_line
+                return
             
             if duration > self.max_gap:
                 print_warning(f"⚠️ Detected unrealistic time jump ({duration}s). Possible parsing error at line {log_line.line_number}. Skipping from severity scoring.")

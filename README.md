@@ -8,9 +8,11 @@ It runs efficiently on GB-scale log files leveraging Python generators, identify
 
 - **Stream Processing Strategy**: Processes logs iteratively without loading the entire file into memory, keeping the footprint minimal.
 - **The Alibi Protocol (Cross-Log Sync)**: Compares primary logs against secondary/background logs to mathematically prove intentional deletion instances when time gaps match background file activities.
+- **Shannon Entropy Forgery Catcher**: Dynamically calculates the informational randomness of text payloads in $O(1)$ memory. Automatically catches hackers who inject repetitive synthetic logs to mask their tracks.
+- **Causality Violation Engine**: Detects reverse-time anomalies where timestamps move backwards chronologically, instantly catching out-of-order writes or systemic NTP Spoofing (Time Travel).
+- **Adaptive Data-Poisoning Defense**: Freezes the rolling statistical baseline when anomalies are detected, preventing adversaries from slowly reducing system sensitivity using iterative pollution payloads.
 - **Log Integrity Confidence**: Evaluates the global mathematical Trust percentage of the audit trail, degrading points for frequency of anomalies and max threshold violations.
 - **Dynamic Severity Scoring**: Categorizes missing time intervals into `LOW`, `MEDIUM`, or `HIGH` severity cleanly.
-- **Intelligent Pattern Insights**: Generates actionable contextual observations regarding gap clusters.
 - **Robust Multi-format Parsing**: Fallback strategies cleanly extract timestamps and bypass completely malformed corruption gracefully.
 - **Normalized ASCII Timeline**: Analyzes gap frequencies graphically across a relative timeline string.
 

@@ -11,7 +11,7 @@ from utils import format_duration
 
 class Reporter:
     """Consolidates gaps and renders them in various formats."""
-    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, is_interactive: bool, malformed_count: int, max_gap_violations: int):
+    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, is_interactive: bool, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int):
         self.gaps = gaps
         self.total_lines = total_lines
         self.file_start = file_start
@@ -20,6 +20,8 @@ class Reporter:
         self.is_interactive = is_interactive
         self.malformed_count = malformed_count
         self.max_gap_violations = max_gap_violations
+        self.causality_count = causality_count
+        self.forgery_count = forgery_count
         self.gap_durations = [g.duration_seconds for g in self.gaps]
 
     def _generate_insights(self) -> List[str]:
@@ -60,7 +62,9 @@ class Reporter:
             self.total_lines, 
             self.malformed_count, 
             self.max_gap_violations, 
-            alibi_failures
+            alibi_failures,
+            self.causality_count,
+            self.forgery_count
         )
         insights = self._generate_insights()
         
@@ -114,7 +118,7 @@ class Reporter:
             print(f"Longest Gap:         {summary['longest_gap_formatted']}")
         print(f"Suspicion Score:     {summary['suspicion_score']}")
         print(f"System Status:       {summary['system_status']}")
-        print(f"Trust Confidence:    {summary['trust_percentage']}%")
+        print(f"Log Integrity Confidence: {summary['trust_percentage']}%")
         print(f"Reason:              {summary['reason']}")
         
         print("\n--- Intelligent Insights ---")
