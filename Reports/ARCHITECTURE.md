@@ -6,25 +6,25 @@ Tempora employs a strictly pipelined architecture tailored for scale, separation
 
 ```mermaid
 graph TD;
-    A[main.py CLI Interface] -->|Provides File & Config| B[utils.py File Generator]
-    B -->|Yields raw strings| C[parser.py Regex Engine]
-    C -->|Extracts datetime, Yields LogLine| D[detector.py Gap Detector]
-    D -->|Calculates time deltas| E[severity.py Scorer]
-    D -->|Yields Gap objects| F[reporter.py Formatter]
+    A[integrity_check.py CLI] -->|Provides File & Config| B[File Generator]
+    B -->|Yields raw strings| C[Regex Engine]
+    C -->|Extracts datetime, Yields LogLine| D[Gap Detector]
+    D -->|Calculates time deltas| E[Scorer]
+    D -->|Yields Gap objects| F[Formatter]
     E -.->|Updates Suspicion| F
     F -->|Outputs CLI/JSON/Timeline| G[Output Sink]
 ```
 
-### Module Roles
+### Logic Layers (Single File Deliverable)
 
-1. **`main.py`**: Handles user arguments via `argparse`, orchestrates the pipeline, and bootstraps the configuration.
-2. **`config.py`**: Stores default settings, parsing templates, gap thresholds, and severity boundaries.
-3. **`exceptions.py`**: Consolidates custom warning and error exceptions.
-4. **`utils.py`**: Exposes utility functions such as graceful time string formatting and `generate_lines` for stream feeding.
-5. **`parser.py` (LogParser)**: Iterates over regex strategies. Returns fully typed `LogLine` objects containing the payload, line count, and strict datetime format.
-6. **`detector.py` (GapDetector)**: Maintains internal state (`last_log_line`). For every observed `LogLine`, checks if the scalar time difference surpasses the configuration threshold. Supports ignoring intervals matching known "Safe" ranges.
-7. **`severity.py`**: Evaluates scalar float durations. Assigns Enum severity tags. Uses heuristic ratios to evaluate overall document suspicion.
-8. **`reporter.py` (Reporter)**: Sinks aggregated state to string or JSON. Exposes the algorithmic text-based timeline.
+While Tempora is legally distributed as a single automated script (`integrity_check.py`) to conform exactly to requirements, it is architected under the hood using strict, enterprise-decoupled logic blocks.
+
+1. **Orchestrator**: Handles user arguments via `argparse`, sets up config overrides, and initializes the pipeline loop.
+2. **Configuration Block**: Stores runtime fallbacks, Regex parsing templates, default gap thresholds, and severity boundaries.
+3. **LogParser Layer (Parser.py equivalent)**: Iterates over regex strategies rapidly. Generates fully typed `LogLine` objects resolving payload text and timestamps flawlessly.
+4. **GapDetector Layer (Detector.py equivalent)**: Maintains internal strict mathematical state ($O(1)$ memory). Explicitly manages Causality Violations, filters Data Poisoning attacks, and runs the rolling Shannon Entropy logic.
+5. **Severity Engine (Trust Framework)**: Assesses scalar float durations assigning static Severity Enum tags (`LOW`, `HIGH`). Deducts penalties according to the Mathematical Confidence degradation matrix.
+6. **Reporter Layer**: Aggregates verified data structures and gracefully sinks them to the deterministic CLI string models expected by the ideathon, immediately cascading into visualization tools dynamically.
 
 ## Why a Streaming Approach?
 

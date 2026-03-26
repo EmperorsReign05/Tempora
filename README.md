@@ -25,7 +25,7 @@ No external dependencies are required. The tool operates using only the Python s
 ```bash
 git clone https://github.com/EmperorsReign05/Tempora.git
 cd Tempora
-python main.py --help
+python integrity_check.py --help
 ```
 
 ---
@@ -34,36 +34,36 @@ python main.py --help
 
 Run the analyzer with default settings and metrics:
 ```bash
-python main.py sample_logs\gaps.log --summary --timeline
+python integrity_check.py sample_logs\gaps.log --summary --timeline
 ```
 
 Run the Alibi Protocol against a secondary immutable log (e.g. syslog):
 ```bash
-python main.py sample_logs\gaps.log --alibi sample_logs\clean.log --summary --timeline
+python integrity_check.py sample_logs\gaps.log --alibi sample_logs\clean.log --summary --timeline
 ```
 
 Include the Summary Metrics:
 ```bash
-python log_analyzer/main.py app.log --summary
+python integrity_check.py app.log --summary
 ```
 
 Generate an Interactive Timeline & Verbose Output (Shows skipped lines):
 ```bash
-python log_analyzer/main.py app.log --summary --timeline --verbose
+python integrity_check.py app.log --summary --timeline --verbose
 ```
 
 Export results to JSON for automation pipelines:
 ```bash
-python log_analyzer/main.py app.log --format json > report.json
+python integrity_check.py app.log --format json > report.json
 ```
 
 Adjust the gap detection threshold (default is 60 seconds):
 ```bash
 # Flags gaps larger than 120 seconds
-python main.py sample_logs\gaps.log --threshold 120
+python integrity_check.py sample_logs\gaps.log --threshold 120
 ```
 
-*Note: Changing the threshold fundamentally alters the detected gaps. For example, running `python main.py logs.txt` (default 60s) might detect 3 gaps, while `python main.py logs.txt --threshold 120` might detect only 2 gaps, ignoring smaller anomalies entirely.*
+*Note: Changing the threshold fundamentally alters the detected gaps. For example, running `python integrity_check.py logs.txt` (default 60s) might detect 3 gaps, while `python integrity_check.py logs.txt --threshold 120` might detect only 2 gaps, ignoring smaller anomalies entirely.*
 
 ---
 
