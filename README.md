@@ -70,55 +70,25 @@ python integrity_check.py sample_logs\gaps.log --threshold 120
 ## Sample Output
 
 ```text
-Running Alibi Protocol against secondary log: sample_logs\clean.log
-=== Tempora: Forensic Log Analysis ===
-=== Configuration ===
-Threshold: 60 seconds
-Execution Mode: CLI
-Configuration Source: Default
-=====================
-Note: Gaps below threshold are ignored
+Gap Detected
+Start: 07:53:42
+End: 08:23:42
+Duration: 1800 seconds
 
-Gap Detected #1:
-  Start:    2024-10-14 10:00:18 (Line 10)
-  End:      2024-10-14 10:01:40 (Line 11)
-  Duration: 1m 22s
-  Severity: LOW
-  [!] ALIBI FAILURE: Secondary log confirmed 40 events during this silent gap.       
-      -> Confirms intentional log deletion/tampering.
+Total Gaps Found: 1
 
-Gap Detected #2:
-  Start:    2024-10-14 10:01:50 (Line 16)
-  End:      2024-10-14 10:10:10 (Line 17)
-  Duration: 8m 20s
-  Severity: MEDIUM
-  [!] ALIBI FAILURE: Secondary log confirmed 44 events during this silent gap.       
-      -> Confirms intentional log deletion/tampering.
-
-Gap Detected #3:
-  Start:    2024-10-14 10:10:20 (Line 22)
-  End:      2024-10-14 11:17:00 (Line 23)
-  Duration: 1h 6m 40s
-  Severity: HIGH
-
-=== ANALYSIS SUMMARY ===
-Total Lines Parsed:  23
-Total Gaps:          3
-Longest Gap:         1h 6m 40s
-Suspicion Score:     0.2609
-System Status:       COMPROMISED
-Log Integrity Confidence: 28%
-Reason:              CRITICAL: 2 Alibi Failures detected (Proven tampering) | Major timeline disruptions (HIGH gaps)
-
---- Intelligent Insights ---
-1. Clustered anomalies detected (gaps occurring in close temporal proximity). This may indicate coordinated tampering or systemic cascading failures.
-========================
+========================================
+=== TEMPORA ADVANCED INTEGRITY MATRIX ===
+========================================
+Total Lines Processed: 103
+System Status:         COMPROMISED
+Log Trust Confidence:  0%
+Reason:                CAUSALITY VIOLATION: 1 reverse-time jumps detected | SYNTHETIC FORGERY: 21 instances of Shannon Entropy collapse
 
 === TIMELINE NORMALIZATION VISUALIZATION ===
-Start: 2024-10-14 10:00:00
-[!xxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX]
-End:   2024-10-14 11:17:00
+Start: 2024-10-15 08:00:02
+[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+End:   2024-10-15 08:23:42
 Legend: [.] OK   [!] LOW gap   [x] MEDIUM gap   [X] HIGH gap
-Visualization reflects only gaps above configured threshold
-==============================
+============================================
 ```
