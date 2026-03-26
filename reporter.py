@@ -30,17 +30,13 @@ class Reporter:
         if not self.gaps:
             return ["No anomalies detected. Log patterns are consistent."]
             
-        # Count severities
         low_gaps = sum(1 for g in self.gaps if g.severity == Severity.LOW)
         medium_gaps = sum(1 for g in self.gaps if g.severity == Severity.MEDIUM)
         
-        # 1. Frequent short gaps
         if low_gaps >= 3:
             insights.append(f"Frequent short gaps detected ({low_gaps} occurrences). This pattern may indicate beaconing behavior or intermittent endpoint failures.")
             
-        # 2. Clustered gaps checking
         if len(self.gaps) > 1:
-            # check the time between gaps natively.
             clusters = 0
             for i in range(1, len(self.gaps)):
                 time_between = (self.gaps[i].start_time - self.gaps[i-1].end_time).total_seconds()
@@ -162,20 +158,16 @@ class Reporter:
         print("=== TIMELINE NORMALIZATION VISUALIZATION ===")
         print(f"Start: {self.file_start.strftime('%Y-%m-%d %H:%M:%S')}")
         
-        # Initialize an empty timeline array of the given width
         timeline_buckets = ['.'] * width
         bucket_duration = total_duration / width
         
         for gap in self.gaps:
-            # A gap spans from gap.start_time to gap.end_time
-            # We color all buckets it touches
             start_offset = (gap.start_time - self.file_start).total_seconds()
             end_offset = (gap.end_time - self.file_start).total_seconds()
             
             start_idx = int(start_offset / bucket_duration)
             end_idx = int(end_offset / bucket_duration)
             
-            # Bound safely
             start_idx = max(0, min(width - 1, start_idx))
             end_idx = max(start_idx, min(width - 1, end_idx))
             
@@ -184,7 +176,6 @@ class Reporter:
                 char = 'X'
                 
             for i in range(start_idx, end_idx + 1):
-                # Ensure we only upgrade severity, never downgrade a previous gap's bucket
                 current_char = timeline_buckets[i]
                 if char == 'X':
                     timeline_buckets[i] = 'X'

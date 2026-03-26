@@ -73,41 +73,32 @@ class GapDetector:
         """
         self.total_lines_processed += 1
         
-        # --- SHANNON ENTROPY FORGERY CATCHER ---
-        # Strip the timestamp (first ~20 chars) to measure actual message entropy
         payload_text = log_line.raw_payload[20:]
         text_entropy = calculate_entropy(payload_text)
         
-        # Minimum baseline of 50 lines built up, restrict to substantial log lines
         is_forged = False
         if self.entropy_count > 50 and len(payload_text) > 20:
-             # Substantial drops (>25%) from the server's running baseline indicate scripted filler
              if text_entropy < (self.rolling_entropy * 0.75) or text_entropy < 3.0: 
                  self.forgeries.append(Forgery(log_line.timestamp, log_line.line_number, text_entropy, log_line.raw_payload[:60]))
                  is_forged = True
                  
-        # Defend against "Data Poisoning Attacks": 
-        # Only adapt the mathematical baseline if the line is organically valid.
         if not is_forged:
             self.rolling_entropy = (self.rolling_entropy * self.entropy_count + text_entropy) / (self.entropy_count + 1)
         
         self.entropy_count += 1
         
         if self.last_log_line:
-            # Calculate time difference
             delta = log_line.timestamp - self.last_log_line.timestamp
             duration = delta.total_seconds()
             
-            # --- CAUSALITY VIOLATION (TIME TRAVEL) ---
             if duration < 0:
                 self.causality_violations.append(CausalityViolation(self.last_log_line.timestamp, log_line.timestamp, log_line.line_number))
                 self.last_log_line = log_line
                 return
             
             if duration > self.max_gap:
-                print_warning(f"⚠️ Detected unrealistic time jump ({duration}s). Possible parsing error at line {log_line.line_number}. Skipping from severity scoring.")
+                print_warning(f"Detected unrealistic time jump ({duration}s). Possible parsing error at line {log_line.line_number}. Skipping from severity scoring.")
             elif duration >= self.min_threshold:
-                # We have a gap exceeding our minimum threshold
                 if not self._is_in_safe_interval(self.last_log_line.timestamp, log_line.timestamp):
                     severity = calculate_severity(duration)
                     yield Gap(
@@ -119,5 +110,4 @@ class GapDetector:
                         end_line_num=log_line.line_number
                     )
         
-        # Progress state
         self.last_log_line = log_line

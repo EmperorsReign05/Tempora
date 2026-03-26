@@ -24,9 +24,6 @@ class LogParser:
     def __init__(self, custom_formats=None):
         self.formats = custom_formats or DEFAULT_CONFIG.timestamp_formats
         
-        # We look for something that resembles a date/time structure at the start or inside the line.
-        # This generic pattern grabs a block of characters that look like a timestamp. 
-        # For a truly extensible robust solution we try parsing prefix text using datetime.strptime
         self._pattern = re.compile(
             r'^(?P<time_str>\d{2,4}[-/]?\d{2}[-/]?\d{2}[T\s]?\d{2}:\d{2}:\d{2}(?:\.\d+)?|' # standard ISO or similar
             r'[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})' # syslog like `Oct 14 12:30:00`
@@ -36,7 +33,6 @@ class LogParser:
         """Attempt to parse a datetime using configured formats."""
         for fmt in self.formats:
             try:
-                # If year is missing like syslog format, default to current year.
                 dt = datetime.strptime(time_str, fmt)
                 if "%Y" not in fmt and "%y" not in fmt:
                     dt = dt.replace(year=datetime.now().year)
@@ -52,7 +48,7 @@ class LogParser:
         """
         line = line.strip()
         if not line:
-            return None # Skip empty lines
+            return None
 
         match = self._pattern.search(line)
         if match:
@@ -66,6 +62,4 @@ class LogParser:
                     line_number=line_num
                 )
             
-        # If no regex match or all parsing failed, we raise a warning for malformed line
-        # but return None so the detector can safely skip it.
         return None

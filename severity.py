@@ -51,12 +51,10 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
     if total_lines == 0:
         return 0.0, SystemStatus.NORMAL, 100, "Log file implies normal contiguous structure"
 
-    # Tally severities
     high_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.HIGH)
     medium_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.MEDIUM)
     low_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.LOW)
     
-    # Mathematical Confidence Degradation Model (Trust %)
     trust = 100.0
     trust -= (low_count * 2)
     trust -= (medium_count * 5)
@@ -64,14 +62,13 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
     trust -= (max_gap_violations * 20)
     trust -= (causality_count * 30)
     trust -= (forgery_count * 20)
-    trust -= (malformed_count * 0.1) # 1% per 10 lines
+    trust -= (malformed_count * 0.1)
     
     if alibi_failures > 0:
         trust -= 50
 
-    trust = max(0, min(100, int(trust))) # Clamp 0 - 100
+    trust = max(0, min(100, int(trust)))
 
-    # Qualitative Reason construction
     reasons = []
     if alibi_failures > 0:
         reasons.append(f"CRITICAL: {alibi_failures} Alibi Failures detected (Proven tampering)")
@@ -93,10 +90,8 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
 
     reason_str = " | ".join(reasons)
 
-    # Legacy Suspicion Score mapping to support existing code
     score = (high_count * 3 + medium_count * 2 + low_count * 1) / total_lines
     
-    # Evaluate System Status natively off Trust and Evidence
     if alibi_failures > 0 or trust < 50:
         status = SystemStatus.COMPROMISED
     elif trust < 85:

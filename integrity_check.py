@@ -13,9 +13,6 @@ from datetime import datetime
 from collections import Counter
 from enum import Enum
 
-# ==========================================
-# 1. CORE EXCEPTIONS & UTILS
-# ==========================================
 class LogAnalyzerError(Exception):
     pass
 class ConfigurationError(LogAnalyzerError):
@@ -38,9 +35,6 @@ def generate_lines(file_path: str) -> Iterator[str]:
         for line in f:
             yield line
 
-# ==========================================
-# 2. CONFIGURATION & MODELS
-# ==========================================
 class Severity(Enum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
@@ -56,7 +50,7 @@ class Config:
     min_gap_threshold: int = 60
     max_reasonable_gap: int = 172800 
     timestamp_formats: List[str] = field(default_factory=lambda: [
-        "%y%m%d %H%M%S",        # HDFS Given Format Expected by Judges
+        "%y%m%d %H%M%S",        
         "%Y-%m-%d %H:%M:%S,%f",
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%dT%H:%M:%S.%fZ",
@@ -66,9 +60,6 @@ class Config:
 
 DEFAULT_CONFIG = Config()
 
-# ==========================================
-# 3. PARSER LAYER
-# ==========================================
 @dataclass
 class LogLine:
     timestamp: datetime
@@ -80,7 +71,7 @@ class LogParser:
         self.formats = custom_formats or DEFAULT_CONFIG.timestamp_formats
         self._pattern = re.compile(
             r'^(?P<time_str>\d{2,4}[-/]?\d{2}[-/]?\d{2}[T\s]?\d{2}:\d{2}:\d{2}(?:\.\d+)?|' 
-            r'\d{6}\s+\d{6}|' # Natively supports the provided HDFS format dynamically
+            r'\d{6}\s+\d{6}|' 
             r'[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})'
         )
 
@@ -106,9 +97,6 @@ class LogParser:
                 return LogLine(timestamp=timestamp, raw_payload=line, line_number=line_num)
         return None
 
-# ==========================================
-# 4. DETECTION LAYER (Gaps, Forgery, Causality)
-# ==========================================
 def calculate_severity(duration_seconds: float) -> Severity:
     if duration_seconds > 3600: return Severity.HIGH
     if duration_seconds > 300: return Severity.MEDIUM
@@ -199,9 +187,6 @@ class GapDetector:
                     )
         self.last_log_line = log_line
 
-# ==========================================
-# 5. TRUST DECISION ENGINE (Severity)
-# ==========================================
 def calculate_global_suspicion(gap_durations: List[float], total_lines: int, malformed_count: int = 0, max_gap_violations: int = 0, alibi_failures: int = 0, causality_count: int = 0, forgery_count: int = 0) -> Tuple[float, SystemStatus, int, str]:
     if total_lines == 0: return 0.0, SystemStatus.NORMAL, 100, "Log file implies normal contiguous structure"
 
@@ -241,9 +226,6 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
         
     return score, status, trust, reason_str
 
-# ==========================================
-# 6. REPORTING LAYER
-# ==========================================
 def format_duration(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
@@ -286,7 +268,6 @@ class Reporter:
         print(f"Total Gaps Found: {len(self.gaps)}")
 
     def print_advanced_summary(self):
-        """Prints the Ideathon Stretch Goals / Extended Integrity Matrix."""
         print("\n" + "="*40)
         print("=== TEMPORA ADVANCED INTEGRITY MATRIX ===")
         print("="*40)
@@ -302,7 +283,6 @@ class Reporter:
         print(f"Log Trust Confidence:  {trust}%")
         print(f"Reason:                {reason}")
         
-        # ASCII Visualization
         if not self.file_start or not self.file_end: return
         total_span = (self.file_end - self.file_start).total_seconds()
         if total_span <= 0: return
@@ -326,9 +306,6 @@ class Reporter:
         print("Legend: [.] OK   [!] LOW gap   [x] MEDIUM gap   [X] HIGH gap")
         print("============================================")
 
-# ==========================================
-# 7. MAIN ORCHESTRATOR
-# ==========================================
 def main():
     parser = argparse.ArgumentParser(
         description="Tempora: Automated Log Integrity Monitor (integrity_check.py)",
@@ -378,7 +355,6 @@ def main():
         print_error(f"Fatal error: {e}")
         sys.exit(1)
 
-    # Secondary Alibi Cross-Reference
     if args.alibi and gaps:
         alibi_parser = LogParser(custom_formats=config.timestamp_formats)
         try:
@@ -393,10 +369,8 @@ def main():
 
     reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries))
     
-    # 1. Print STRICT REQUIRED OUTPUT FORMAT
     reporter.print_core_report()
     
-    # 2. Print ADVANCED IDEATHON FEATURES (Stretch Goals)
     reporter.print_advanced_summary()
 
 if __name__ == "__main__":

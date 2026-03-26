@@ -36,7 +36,6 @@ def main():
                         
     args = parser.parse_args()
 
-    # Interactive mode logic
     if args.interactive:
         print("=== Tempora Interactive Setup ===")
         logfile = input(f"Enter path to log file [{args.logfile}]: ").strip()
@@ -54,7 +53,6 @@ def main():
             time_in = input(f"Include visual timeline? (y/n) [{'y' if args.timeline else 'n'}]: ").strip().lower()
             if time_in == 'y': args.timeline = True
 
-    # Configuration override
     config = Config(min_gap_threshold=args.threshold)
     
     log_parser = LogParser(custom_formats=config.timestamp_formats)
@@ -67,7 +65,6 @@ def main():
     file_start = None
     file_end = None
 
-    # Stream processing flow
     try:
         for line_num, line in enumerate(generate_lines(args.logfile), 1):
             log_line = log_parser.parse_line(line, line_num)
@@ -77,9 +74,6 @@ def main():
                     file_start = log_line.timestamp
                 file_end = log_line.timestamp
                 
-                # We need to catch output prints from GapDetector realistically, but for now we simply know 
-                # if duration exceeded max_gap, it wasn't yielded. We can just rely on the detector logic.
-                # Actually, detector doesn't yield max_gap jumps. To track them, we'll just check timestamps natively:
                 if detector.last_log_line and (log_line.timestamp - detector.last_log_line.timestamp).total_seconds() > detector.max_gap:
                      max_gap_violations += 1
 
@@ -99,7 +93,6 @@ def main():
         print_error(f"Fatal error during processing: {e}")
         sys.exit(1)
 
-    # --- THE ALIBI PROTOCOL ---
     if args.alibi and gaps:
         alibi_parser = LogParser(custom_formats=config.timestamp_formats)
         print(f"Running Alibi Protocol against secondary log: {args.alibi}")
@@ -107,20 +100,17 @@ def main():
             for alibi_line_num, line in enumerate(generate_lines(args.alibi), 1):
                 alibi_log = alibi_parser.parse_line(line, alibi_line_num)
                 if alibi_log:
-                    # Check if this timestamp falls within any known gaps
                     for gap in gaps:
                         if gap.start_time < alibi_log.timestamp < gap.end_time:
                             gap.alibi_evidence_count += 1
         except Exception as e:
             print_warning(f"Failed to read Alibi log {args.alibi}: {e}")
 
-    # Output Reporting Phase
     reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, args.interactive, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries))
     
     if args.format == "json":
         reporter.print_json()
     else:
-        # CLI text formatting
         reporter.print_cli_report()
         if args.summary:
             reporter.print_summary()
