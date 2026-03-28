@@ -391,8 +391,12 @@ def main():
                     for gap in gaps:
                         if gap.start_time < alibi_log.timestamp < gap.end_time:
                             gap.alibi_evidence_count += 1
-        except Exception:
-            pass
+        except FileNotFoundError as e:
+            print_warning(f"[!] ALIBI PROTOCOL SKIPPED: Secondary log not found '{args.alibi}'")
+        except PermissionError:
+            print_warning(f"[!] ALIBI PROTOCOL SKIPPED: Insufficient permissions to read '{args.alibi}'")
+        except Exception as e:
+            print_warning(f"[!] ALIBI PROTOCOL FAILED: Unhandled exception during cross-reference: {e}")
 
     reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries))
     
