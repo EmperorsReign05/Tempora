@@ -306,6 +306,17 @@ class Reporter:
         print("Legend: [.] OK   [!] LOW gap   [x] MEDIUM gap   [X] HIGH gap")
         print("============================================")
 
+def print_banner():
+    banner = """\033[96m████████╗███████╗███╗   ███╗██████╗  ██████╗ ██████╗  █████╗ 
+╚══██╔══╝██╔════╝████╗ ████║██╔══██╗██╔═══██╗██╔══██╗██╔══██╗
+   ██║   █████╗  ██╔████╔██║██████╔╝██║   ██║██████╔╝███████║
+   ██║   ██╔══╝  ██║╚██╔╝██║██╔═══╝ ██║   ██║██╔══██╗██╔══██║
+   ██║   ███████╗██║ ╚═╝ ██║██║     ╚██████╔╝██║  ██║██║  ██║
+   ╚═╝   ╚══════╝╚═╝     ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝\033[0m"""
+    print(banner)
+    print("\033[1m Tempora CLI — Forensic Log Integrity Analyzer \033[0m")
+    print("=" * 63 + "\n")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Tempora: Automated Log Integrity Monitor (integrity_check.py)",
@@ -316,8 +327,24 @@ def main():
     parser.add_argument("--alibi", type=str, default=None, help="Secondary log file to cross-reference (The Alibi Protocol)")
     parser.add_argument("--threshold", type=int, default=DEFAULT_CONFIG.min_gap_threshold, help="Minimum gap duration in seconds")
     parser.add_argument("--verbose", action="store_true", help="Print verbose warnings")
+    parser.add_argument("--interactive", action="store_true", help="Launch the interactive wizard")
                         
     args = parser.parse_args()
+    
+    print_banner()
+
+    if args.interactive:
+        print("\033[1m[*] Welcome to the Tempora Interactive Setup Wizard\033[0m")
+        log_in = input(f" [?] Path to the primary log file [{args.logfile}]: ").strip()
+        if log_in: args.logfile = log_in
+        
+        thr_in = input(f" [?] Minimum gap threshold in seconds [{args.threshold}]: ").strip()
+        if thr_in.isdigit(): args.threshold = int(thr_in)
+        
+        alibi_in = input(f" [?] (Optional) Path to a secondary log for the Alibi Protocol [None]: ").strip()
+        if alibi_in: args.alibi = alibi_in
+        
+        print("\n[*] Initializing continuous forensic pipeline...\n")
 
     config = Config(min_gap_threshold=args.threshold)
     log_parser = LogParser(custom_formats=config.timestamp_formats)
