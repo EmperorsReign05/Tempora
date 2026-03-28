@@ -1,62 +1,35 @@
 # Tempora: Analyst Walkthrough
 
-This demo walks an Analyst through setting up the tool and evaluating three common real-world log scenarios.
+This demo walks an Analyst through setting up the tool and evaluating core forensic log scenarios.
 
-### Prerequisites
-Navigate to the root project:
+### Scenario 1: The Interactive "Wow Factor" Setup
+Evaluate a severely compromised web server containing Advanced Persistent Threat (APT) data poisoning.
 ```bash
-cd log_analyzer
+python integrity_check.py --interactive
 ```
-Ensure you have generated the test suite mock data:
-```bash
-python testing_scripts/generate_test_logs.py
-```
+**Execution Flow**: 
+- **Primary log:** `server.log`
+- **Threshold:** `60`
+- **Alibi Protocol log:** `auth.log`
 
-### Scenario 1: A Clean Production Log
-You need to verify that a web server has run unbroken natively during a shift.
-```bash
-python integrity_check.py sample_logs/clean.log --summary --timeline
-```
 **Expected Outcome**: 
-The console will simply print:
-`No suspicious gaps detected. Log appears contiguous.`
-Summary will identify Suspicion Score as LOW.
+Tempora explodes into a glowing cyan Matrix. It declares a **0% Trust Confidence Score** and immediately flags the hacker's evasion attempt natively:
+`CAUSALITY VIOLATION: 1 reverse-time jumps detected | SYNTHETIC FORGERY: 21 instances of Shannon Entropy collapse`
+You will see the red `[X]` brackets perfectly highlighting the massive intrusion on the normalized ASCII Timeline.
 
-### Scenario 2: Finding Network Outages with Visualizations
-An analyst suspects connection drops.
+### Scenario 2: The Core Requirement (HDFS Support)
+Prove the tool natively processes the highly unusual format requested in the baseline challenge without modifying regex flags manually.
 ```bash
-python integrity_check.py sample_logs/gaps.log --summary --timeline
+python integrity_check.py sample_logs\hdfs_sample.log --threshold 60
 ```
 **Expected Outcome**:
-You will observe three localized breaks:
-1. `80.0 seconds` (LOW - Connection Drop)
-2. `500.0 seconds` (MEDIUM - Timeout Sequence)
-3. `4000.0 seconds` (HIGH - Crash Window)
+The system perfectly parses the `081109 203615` string, identifying the exact 523-second anomaly expected. It guarantees a `NORMAL` status and a 95% trust score, confirming the gap is a benign system timeout rather than a deliberate cyberattack.
 
-The timeline outputs as an ASCII progress bar, placing an `!`, `x`, and `X` proportionately across the runtime, proving immediate insight without filtering.
-
-### Scenario 2B: Custom Threshold Analysis (Filtering Confidence)
-By default, the analysis looks for any gap > 60 seconds. However, noisy systems might throw false positives. We can restrict analysis intelligently:
+### Scenario 3: Automation via JSON Export 
+You finished triage and need the detailed metrics actively piped to your SIEM (e.g., Splunk / ElasticSearch).
 ```bash
-python integrity_check.py sample_logs/gaps.log --threshold 120 --summary --timeline
-```
-**Expected Outcome**: 
-Notice how the output only flags **2 gaps** (`500s` and `4000s`), intentionally ignoring the `80s` LOW severity connection drop. The CLI explicitly warns you via its configuration header that your results differ from default outputs because smaller gaps are mathematically suppressed!
-
-### Scenario 3: Corrupted Intrusions & Parsing Evasions
-The adversary has deleted several lines, intentionally overwrote standard formatting, and replaced headers with blank spaces. You want to see the gaps without the tool crashing.
-```bash
-python integrity_check.py sample_logs/malformed.log --summary --timeline --verbose
-```
-**Expected Outcome**: 
-Because `--verbose` is provided, `WARNING` tags explicitly print to `stderr` notifying the analyst of the malformed strings `This line has no timestamp and should be skipped`.
-The tool recovers its sequence upon the string `sume after large gap and malformed lines`, correctly flagging the missing time space!
-
-### Scenario 4: JSON Export to Splunk/SIEM
-You finished triage and need the results piped to your aggregator.
-```bash
-python integrity_check.py sample_logs/gaps.log --format json > report.json
+python integrity_check.py server.log --format json > report.json
 cat report.json
 ```
 **Expected Outcome**: 
-Outputs deterministic machine-readable schemas capturing durations, line indices, and computed heuristics.
+Outputs highly deterministic, strictly structured JSON arrays capturing gap intervals, line indices, severity enums, and the fully calculated mathematical trust heuristics.

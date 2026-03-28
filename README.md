@@ -1,5 +1,7 @@
 # Tempora: Automated Log Integrity Monitor
 
+![Tempora CLI Demo](demo.png)
+
 **Tempora** is a production-quality, modular forensic tool designed for security analysts to process large-scale log files and detect suspicious temporal anomalies (e.g., manipulated timestamps, missing entries, dropped connections).
 
 It runs efficiently on GB-scale log files leveraging Python generators, identifying gaps between entries, categorizing them intelligently by severity, and providing global suspicion scores to quickly aid triage.
