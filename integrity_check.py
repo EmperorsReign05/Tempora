@@ -7,6 +7,7 @@ import os
 import argparse
 import re
 import math
+import json
 from typing import Iterator, List, Tuple, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -306,6 +307,44 @@ class Reporter:
         print("Legend: [.] OK   [!] LOW gap   [x] MEDIUM gap   [X] HIGH gap")
         print("============================================")
 
+    def print_json(self):
+        alibi_failures = sum(1 for g in self.gaps if g.alibi_evidence_count > 0)
+        score, status, trust, reason = calculate_global_suspicion(
+            self.gap_durations, self.total_lines, self.malformed_count, 
+            self.max_gap_violations, alibi_failures, self.causality_count, self.forgery_count
+        )
+        
+        output = {
+            "metadata": {
+                "file_start": self.file_start.isoformat() if self.file_start else None,
+                "file_end": self.file_end.isoformat() if self.file_end else None,
+                "total_lines_processed": self.total_lines,
+                "threshold_seconds": self.threshold
+            },
+            "anomalies": {
+                "total_gaps_found": len(self.gaps),
+                "malformed_lines_skipped": self.malformed_count,
+                "causality_violations_detected": self.causality_count,
+                "shannon_entropy_collapses": self.forgery_count,
+                "alibi_failures_detected": alibi_failures
+            },
+            "trust_metrics": {
+                "system_status": status.value,
+                "log_trust_confidence_percent": trust,
+                "suspicion_reason": reason
+            },
+            "detailed_gaps": [
+                {
+                    "start_time": g.start_time.isoformat(),
+                    "end_time": g.end_time.isoformat(),
+                    "duration_seconds": int(g.duration_seconds),
+                    "severity": g.severity.value,
+                    "alibi_events_caught": g.alibi_evidence_count
+                } for g in self.gaps
+            ]
+        }
+        print(json.dumps(output, indent=2))
+
 def print_banner():
     banner = """\033[96m████████╗███████╗███╗   ███╗██████╗  ██████╗ ██████╗  █████╗ 
 ╚══██╔══╝██╔════╝████╗ ████║██╔══██╗██╔═══██╗██╔══██╗██╔══██╗
@@ -326,6 +365,7 @@ def main():
     parser.add_argument("logfile", nargs='?', default="logfile.log", help="Path to the log file to analyze")
     parser.add_argument("--alibi", type=str, default=None, help="Secondary log file to cross-reference (The Alibi Protocol)")
     parser.add_argument("--threshold", type=int, default=DEFAULT_CONFIG.min_gap_threshold, help="Minimum gap duration in seconds")
+    parser.add_argument("--format", type=str, choices=["text", "json"], default="text", help="Output format (text or json)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose warnings")
     parser.add_argument("--interactive", action="store_true", help="Launch the interactive wizard")
                         
@@ -400,9 +440,11 @@ def main():
 
     reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries))
     
-    reporter.print_core_report()
-    
-    reporter.print_advanced_summary()
+    if args.format == "json":
+        reporter.print_json()
+    else:
+        reporter.print_core_report()
+        reporter.print_advanced_summary()
 
 if __name__ == "__main__":
     main()

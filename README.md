@@ -32,34 +32,28 @@ python integrity_check.py --help
 
 ## Usage Examples
 
-Run the analyzer with default settings and metrics:
+**The easiest way to run the tool is using the Interactive Wizard:**
 ```bash
-python integrity_check.py sample_logs\gaps.log --summary --timeline
+python integrity_check.py --interactive
 ```
 
-Run the Alibi Protocol against a secondary immutable log (e.g. syslog):
+**Run standard analysis via CLI arguments:**
 ```bash
-python integrity_check.py sample_logs\gaps.log --alibi sample_logs\clean.log --summary --timeline
+python integrity_check.py sample_logs\gaps.log
 ```
 
-Include the Summary Metrics:
+**Run the Alibi Protocol against a secondary immutable log (e.g. syslog):**
 ```bash
-python integrity_check.py app.log --summary
+python integrity_check.py sample_logs\gaps.log --alibi sample_logs\clean.log
 ```
 
-Generate an Interactive Timeline & Verbose Output (Shows skipped lines):
+**Export strict structural metrics to JSON for automation/SIEM pipelines:**
 ```bash
-python integrity_check.py app.log --summary --timeline --verbose
+python integrity_check.py sample_logs\gaps.log --format json > report.json
 ```
 
-Export results to JSON for automation pipelines:
+**Adjust the gap detection threshold (default is 60 seconds):**
 ```bash
-python integrity_check.py app.log --format json > report.json
-```
-
-Adjust the gap detection threshold (default is 60 seconds):
-```bash
-# Flags gaps larger than 120 seconds
 python integrity_check.py sample_logs\gaps.log --threshold 120
 ```
 
