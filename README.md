@@ -49,9 +49,10 @@ python integrity_check.py sample_logs\gaps.log
 python integrity_check.py sample_logs\gaps.log --alibi sample_logs\clean.log
 ```
 
-**Export strict structural metrics to JSON for automation/SIEM pipelines:**
+**Export strict structural metrics to JSON or CSV for automation/SIEM pipelines:**
 ```bash
 python integrity_check.py sample_logs\gaps.log --format json > report.json
+python integrity_check.py sample_logs\gaps.log --format csv > anomalies.csv
 ```
 
 **Adjust the gap detection threshold (default is 60 seconds):**

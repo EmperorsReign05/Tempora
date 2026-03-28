@@ -8,6 +8,7 @@ import argparse
 import re
 import math
 import json
+import csv
 from typing import Iterator, List, Tuple, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -345,6 +346,34 @@ class Reporter:
         }
         print(json.dumps(output, indent=2))
 
+    def print_csv(self):
+        writer = csv.writer(sys.stdout)
+        
+        alibi_failures = sum(1 for g in self.gaps if g.alibi_evidence_count > 0)
+        score, status, trust, reason = calculate_global_suspicion(
+            self.gap_durations, self.total_lines, self.malformed_count, 
+            self.max_gap_violations, alibi_failures, self.causality_count, self.forgery_count
+        )
+        
+        writer.writerow([
+            "start_time", "end_time", "duration_seconds", "severity", 
+            "alibi_events_caught", "total_causality_violations", 
+            "shannon_entropy_collapses", "system_trust_confidence", "system_status"
+        ])
+        
+        for g in self.gaps:
+            writer.writerow([
+                g.start_time.isoformat(),
+                g.end_time.isoformat(),
+                int(g.duration_seconds),
+                g.severity.value,
+                g.alibi_evidence_count,
+                self.causality_count,
+                self.forgery_count,
+                f"{trust}%",
+                status.value
+            ])
+
 def print_banner():
     banner = """\033[96m████████╗███████╗███╗   ███╗██████╗  ██████╗ ██████╗  █████╗ 
 ╚══██╔══╝██╔════╝████╗ ████║██╔══██╗██╔═══██╗██╔══██╗██╔══██╗
@@ -365,13 +394,17 @@ def main():
     parser.add_argument("logfile", nargs='?', default="logfile.log", help="Path to the log file to analyze")
     parser.add_argument("--alibi", type=str, default=None, help="Secondary log file to cross-reference (The Alibi Protocol)")
     parser.add_argument("--threshold", type=int, default=DEFAULT_CONFIG.min_gap_threshold, help="Minimum gap duration in seconds")
-    parser.add_argument("--format", type=str, choices=["text", "json"], default="text", help="Output format (text or json)")
+    parser.add_argument("--format", type=str, choices=["text", "json", "csv"], default="text", help="Output format (text, json, or csv)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose warnings")
     parser.add_argument("--interactive", action="store_true", help="Launch the interactive wizard")
                         
     args = parser.parse_args()
     
-    print_banner()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding='utf-8')
+    
+    if args.format == "text":
+        print_banner()
 
     if args.interactive:
         print("\033[1m[*] Welcome to the Tempora Interactive Setup Wizard\033[0m")
@@ -442,6 +475,8 @@ def main():
     
     if args.format == "json":
         reporter.print_json()
+    elif args.format == "csv":
+        reporter.print_csv()
     else:
         reporter.print_core_report()
         reporter.print_advanced_summary()
