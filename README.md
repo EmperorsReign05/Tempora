@@ -17,6 +17,7 @@ It runs efficiently on GB-scale log files leveraging Python generators, identify
 - **Dynamic Severity Scoring**: Categorizes missing time intervals into `LOW`, `MEDIUM`, or `HIGH` severity cleanly.
 - **Robust Multi-format Parsing**: Fallback strategies cleanly extract timestamps and bypass completely malformed corruption gracefully.
 - **Normalized ASCII Timeline**: Analyzes gap frequencies graphically across a relative timeline string.
+- **Enterprise HTML Dashboard**: Exports a nice styled, interactive, and zero-dependency dashboard (mimicking premium SIEMs) for rapid presentation and non-technical reporting.
 
 ---
 
@@ -53,6 +54,11 @@ python integrity_check.py sample_logs\gaps.log --alibi sample_logs\clean.log
 ```bash
 python integrity_check.py sample_logs\gaps.log --format json > report.json
 python integrity_check.py sample_logs\gaps.log --format csv > anomalies.csv
+```
+
+**Generate a professional HTML Forensic Dashboard for presentation and triage:**
+```bash
+python integrity_check.py sample_logs\gaps.log --format html > presentation_dashboard.html
 ```
 
 **Adjust the gap detection threshold (default is 60 seconds):**

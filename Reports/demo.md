@@ -33,3 +33,12 @@ cat report.json
 ```
 **Expected Outcome**: 
 Outputs highly deterministic, strictly structured JSON arrays capturing gap intervals, line indices, severity enums, and the fully calculated mathematical trust heuristics.
+
+### Scenario 4: The Executive HTML Dashboard
+You need to present your mathematical findings to non-technical stakeholders in an air-gapped room without an active backend server.
+```bash
+python integrity_check.py server.log --format html > presentation_dashboard.html
+```
+**Expected Outcome**: 
+Outputs a enterprise-grade HTML dashboard natively. It features a standalone `Chart.js` chronological anomaly distribution block, Trust Confidence scores, explicitly formatted Alibi Protocol pass/fail modules, and an educational terminology glossary. All metrics mapped natively via the initial $O(1)$ Python pipeline.
+

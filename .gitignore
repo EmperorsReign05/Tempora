@@ -5,3 +5,5 @@ outputs/
 .env
 sample_logs/
 *.csv
+*.html
+*.txt
