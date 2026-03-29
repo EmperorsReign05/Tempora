@@ -7,3 +7,8 @@ sample_logs/
 *.csv
 *.html
 *.txt
+
+# Python package build artifacts
+build/
+dist/
+*.egg-info/

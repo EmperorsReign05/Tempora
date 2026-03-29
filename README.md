@@ -25,6 +25,15 @@ It runs efficiently on GB-scale log files leveraging Python generators, identify
 
 No external dependencies are required. The tool operates using only the Python standard library.
 
+**Option 1: Global Install via Pip (Recommended)**
+Install directly from GitHub to use `tempora` as a global command-line tool anywhere on your system:
+```bash
+pip install git+https://github.com/EmperorsReign05/Tempora.git
+tempora --help
+```
+
+**Option 2: Manual Check-out**
+If you prefer running the script directly without installing:
 ```bash
 git clone https://github.com/EmperorsReign05/Tempora.git
 cd Tempora
@@ -35,38 +44,40 @@ python integrity_check.py --help
 
 ## Usage Examples
 
+> **Note on Execution:** The examples below use the global `tempora` command (Option 1). If you installed via **Option 2** (manual check-out), simply replace `tempora` with `python integrity_check.py` in your terminal. For example: `python integrity_check.py --interactive`
+
 **The easiest way to run the tool is using the Interactive Wizard:**
 ```bash
-python integrity_check.py --interactive
+tempora --interactive
 ```
 
 **Run standard analysis via CLI arguments:**
 ```bash
-python integrity_check.py sample_logs\gaps.log
+tempora sample_logs\gaps.log
 ```
 
 **Run the Alibi Protocol against a secondary immutable log (e.g. syslog):**
 ```bash
-python integrity_check.py sample_logs\gaps.log --alibi sample_logs\clean.log
+tempora sample_logs\gaps.log --alibi sample_logs\clean.log
 ```
 
 **Export strict structural metrics to JSON or CSV for automation/SIEM pipelines:**
 ```bash
-python integrity_check.py sample_logs\gaps.log --format json > report.json
-python integrity_check.py sample_logs\gaps.log --format csv > anomalies.csv
+tempora sample_logs\gaps.log --format json > report.json
+tempora sample_logs\gaps.log --format csv > anomalies.csv
 ```
 
 **Generate a professional HTML Forensic Dashboard for presentation and triage:**
 ```bash
-python integrity_check.py sample_logs\gaps.log --format html > presentation_dashboard.html
+tempora sample_logs\gaps.log --format html > presentation_dashboard.html
 ```
 
 **Adjust the gap detection threshold (default is 60 seconds):**
 ```bash
-python integrity_check.py sample_logs\gaps.log --threshold 120
+tempora sample_logs\gaps.log --threshold 120
 ```
 
-*Note: Changing the threshold fundamentally alters the detected gaps. For example, running `python integrity_check.py logs.txt` (default 60s) might detect 3 gaps, while `python integrity_check.py logs.txt --threshold 120` might detect only 2 gaps, ignoring smaller anomalies entirely.*
+*Note: Changing the threshold fundamentally alters the detected gaps. For example, running `tempora logs.txt` (default 60s) might detect 3 gaps, while `tempora logs.txt --threshold 120` might detect only 2 gaps, ignoring smaller anomalies entirely.*
 
 ---
 
