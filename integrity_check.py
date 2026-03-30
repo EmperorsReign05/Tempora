@@ -80,8 +80,13 @@ class LogLine:
     line_number: int
 
 class LogParser:
+    """
+    Parses unformatted log lines using regex to extract timestamps.
+    Automatically identifies common log time formats (ISO 8601, syslog, basic).
+    """
     def __init__(self, custom_formats=None):
         self.formats = custom_formats or DEFAULT_CONFIG.timestamp_formats
+        # Pre-compiled general regex designed to quickly catch standard time formats at the start of a line
         self._pattern = re.compile(
             r'^(?P<time_str>\d{2,4}[-/]?\d{2}[-/]?\d{2}[T\s]?\d{2}:\d{2}:\d{2}(?:\.\d+)?|' 
             r'\d{6}\s+\d{6}|' 
@@ -89,9 +94,11 @@ class LogParser:
         )
 
     def _parse_timestamp(self, time_str: str) -> Optional[datetime]:
+        """Attempts to match extracted time string against available formats."""
         for fmt in self.formats:
             try:
                 dt = datetime.strptime(time_str, fmt)
+                # If year isn't present in log (like in syslog `%b %d %H:%M:%S`), default to current year.
                 if "%Y" not in fmt and "%y" not in fmt:
                     dt = dt.replace(year=datetime.now().year)
                 return dt
@@ -100,8 +107,10 @@ class LogParser:
         return None
 
     def parse_line(self, line: str, line_num: int) -> Optional[LogLine]:
+        """Parse raw log line, identify timestamp and reconstruct a LogLine metadata object."""
         line = line.strip()
         if not line: return None
+        
         match = self._pattern.search(line)
         if match:
             time_str = match.group('time_str')
@@ -117,20 +126,27 @@ def calculate_severity(duration_seconds: float) -> Severity:
 
 @dataclass
 class CausalityViolation:
+    """Represents a scenario where log timestamps travel back in time, indicating spoofing or clock sync failures."""
     timestamp_before: datetime
     timestamp_after: datetime
     line_num: int
 
 @dataclass
 class Forgery:
+    """Represents an anomaly caught by the Shannon Entropy filter, usually indicating synthetic/scripted dummy logs injected as noise."""
     timestamp: datetime
     line_num: int
     entropy: float
     raw_text: str
 
 def calculate_entropy(text: str) -> float:
+    """
+    Calculates the Shannon Entropy for a text string. 
+    A lower score implies highly patterned/repetitive data (potential synthetic forgery).
+    """
     if not text: return 0.0
     p, lns = Counter(text), float(len(text))
+    # Standard formula: H(X) = -Σ(P(x) * log2(P(x)))
     return -sum(count/lns * math.log2(count/lns) for count in p.values())
 
 @dataclass
@@ -162,31 +178,46 @@ class GapDetector:
         return False
 
     def process_line(self, log_line: LogLine) -> Iterator[Gap]:
+        """
+        Processes a single log line against the previously cached line, calculating differences in time
+        and looking for time jumps, anomalies, or entropy drops.
+        Yields `Gap` objects whenever consecutive events cross the configured duration thresholds.
+        """
         self.total_lines_processed += 1
         
+        # Estimate log payload by clipping expected timestamp prefix out
         payload_text = log_line.raw_payload[20:]
         text_entropy = calculate_entropy(payload_text)
         is_forged = False
+        
+        # Only evaluate forgeries once baseline (first 50 lines) is established
         if self.entropy_count > 50 and len(payload_text) > 20:
+             # If entropy collapses suddenly below 75% of rolling avg or below absolute threshold of 3.0
              if text_entropy < (self.rolling_entropy * 0.75) or text_entropy < 3.0: 
                  self.forgeries.append(Forgery(log_line.timestamp, log_line.line_number, text_entropy, log_line.raw_payload[:60]))
                  is_forged = True
                  
+        # Maintain a rolling average of standard entropy characteristics
         if not is_forged:
             self.rolling_entropy = (self.rolling_entropy * self.entropy_count + text_entropy) / (self.entropy_count + 1)
         self.entropy_count += 1
         
+        # Analyze temporal gaps between current line and last known line
         if self.last_log_line:
             delta = log_line.timestamp - self.last_log_line.timestamp
             duration = delta.total_seconds()
             
+            # Causality Violation: log travels backward in time
             if duration < 0:
                 self.causality_violations.append(CausalityViolation(self.last_log_line.timestamp, log_line.timestamp, log_line.line_number))
                 self.last_log_line = log_line
                 return
             
+            # Catch catastrophic gaps (e.g. year skipping forward due to bad regex parse)
             if duration > self.max_gap:
                 print_warning(f"⚠️ Detected unrealistic time jump ({duration}s). Possible validation error.")
+            
+            # If duration exceeds configured threshold, formalize it into a documented intervention GAP
             elif duration >= self.min_threshold:
                 if not self._is_in_safe_interval(self.last_log_line.timestamp, log_line.timestamp):
                     severity = calculate_severity(duration)
@@ -201,24 +232,35 @@ class GapDetector:
         self.last_log_line = log_line
 
 def calculate_global_suspicion(gap_durations: List[float], total_lines: int, malformed_count: int = 0, max_gap_violations: int = 0, alibi_failures: int = 0, causality_count: int = 0, forgery_count: int = 0) -> Tuple[float, SystemStatus, int, str]:
+    """
+    Computes system trust metrics using fixed deduction rules based on the frequency 
+    and severity of security-relevant log irregularities.
+    Returns: Tuple of User-facing Heuristic Score, Overall SystemStatus, Adjusted Trust Percentage (0-100), and Text Explanations.
+    """
     if total_lines == 0: return 0.0, SystemStatus.NORMAL, 100, "Log file implies normal contiguous structure"
 
+    # Count gap triggers by logical severities
     high_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.HIGH)
     medium_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.MEDIUM)
     low_count = sum(1 for d in gap_durations if calculate_severity(d) == Severity.LOW)
     
+    # Start at perfect trust, subtracting points based on anomaly weightings
     trust = 100.0
     trust -= (low_count * 2)
     trust -= (medium_count * 5)
     trust -= (high_count * 15)
-    trust -= (max_gap_violations * 20)
-    trust -= (causality_count * 30)
-    trust -= (forgery_count * 20)
-    trust -= (malformed_count * 0.1) 
+    trust -= (max_gap_violations * 20)           # Catastrophic chronological jumps
+    trust -= (causality_count * 30)              # Back-in-time jumps (extreme red flag)
+    trust -= (forgery_count * 20)                # Evidence of synthetic injection mapping
+    trust -= (malformed_count * 0.1)             # Soft penalty for broken files
     
-    if alibi_failures > 0: trust -= 50
+    # Hard deductions
+    if alibi_failures > 0: trust -= 50         # Out-of-band evidence found confirming tampering
+    
+    # Ensure trust stays bounded between 0% - 100%
     trust = max(0, min(100, int(trust)))
 
+    # Collect reasoning sentences based on detected events
     reasons = []
     if alibi_failures > 0: reasons.append(f"CRITICAL: {alibi_failures} Alibi Failures detected (Proven tampering)")
     if causality_count > 0: reasons.append(f"CAUSALITY VIOLATION: {causality_count} reverse-time jumps detected")
@@ -231,8 +273,11 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
     elif not reasons: reasons.append("Perfect contiguous structural integrity")
 
     reason_str = " | ".join(reasons)
+    
+    # Alternative raw score (e.g. arbitrary metric, not specifically 0-100 bound)
     score = (high_count * 3 + medium_count * 2 + low_count * 1) / total_lines
     
+    # Classify overall status
     if alibi_failures > 0 or trust < 50: status = SystemStatus.COMPROMISED
     elif trust < 85: status = SystemStatus.SUSPICIOUS
     else: status = SystemStatus.NORMAL
