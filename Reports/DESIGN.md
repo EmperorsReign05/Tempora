@@ -19,6 +19,16 @@ The application parses each log line and passes a state incrementally through sm
 - **Rationale**: Single arbitrary timeouts (1 hour maintenance script) might be benign, whereas 150 mini gaps (4 minutes each) trigger HIGH suspicion representing a malicious intermittent beacon. Filtering suppresses irrelevant noise for the Incident Response team.
 - **Cost**: The visual timeline only reflects anomalies passing the designated boundary threshold.
 
+### Tradeoff #4: JSON Configuration vs PyYAML
+- **Choice**: Storing configuration overrides exclusively in `.json` files via the standard library `json` module.
+- **Rationale**: Relying on YAML necessitates adding `PyYAML` to an otherwise strictly pure python framework, violating the primary "Zero-Dependency" design paradigm.
+- **Cost**: JSON lacks the commenting capability and clean multiline readability of YAML, enforcing stricter syntax on configuration users.
+
+### Tradeoff #5: Inline Regex Sweeping vs Post-Process Analytics
+- **Choice**: Executing the `PIISweeper` sequentially inline after parsing each payload rather than batch processing.
+- **Rationale**: Inline $O(1)$ stream analytics ensures that even gigantic files do not burst heap limits; the engine processes each line securely and discards it.
+- **Cost**: Compiling three distinct regex sweeps strictly penalizes single-thread execution time linearly based on payload length, drastically reducing throughput against heavily bloated texts compared to C-native libraries like `hyperscan`.
+
 ## Known Limitations
 
 - **Multithreading**: Because the integrity of the forensic stream relies on precise chronological string continuity, logs cannot be efficiently fanned out to parallel worker processes without complex structural sequence tagging. Operations are explicitly bound to a single thread.

@@ -16,6 +16,8 @@ It runs efficiently on GB-scale log files leveraging Python generators, identify
 - **Log Integrity Confidence**: Evaluates the global mathematical Trust percentage of the audit trail, degrading points for frequency of anomalies and max threshold violations.
 - **Dynamic Severity Scoring**: Categorizes missing time intervals into `LOW`, `MEDIUM`, or `HIGH` severity cleanly.
 - **Robust Multi-format Parsing**: Fallback strategies cleanly extract timestamps and bypass completely malformed corruption gracefully.
+- **Dynamic PII Exfiltration Scanning**: Highly optimized regex sweeper catches dropped API Keys, raw IPv4 jumps, and Email accounts inline, mapping natively to MITRE T1005 data leakage thresholds.
+- **JSON Configuration Matrix**: Full override support for custom time layouts and max thresholds natively without PyYAML wrappers.
 - **Normalized ASCII Timeline**: Analyzes gap frequencies graphically across a relative timeline string.
 - **Enterprise HTML Dashboard**: Exports a nice styled, interactive, and zero-dependency dashboard (mimicking premium SIEMs) for rapid presentation and non-technical reporting.
 
@@ -77,6 +79,16 @@ tempora sample_logs\gaps.log --format html --out presentation_dashboard.html
 tempora sample_logs\gaps.log --threshold 120
 ```
 
+**Run PII Sweeping for localized MITRE T1005 Threat mapping:**
+```bash
+tempora sample_logs\gaps.log --scan-pii
+```
+
+**Load comprehensive layout structures via JSON configurations:**
+```bash
+tempora sample_logs\gaps.log --config custom_config.json
+```
+
 *Note: Changing the threshold fundamentally alters the detected gaps. For example, running `tempora logs.txt` (default 60s) might detect 3 gaps, while `tempora logs.txt --threshold 120` might detect only 2 gaps, ignoring smaller anomalies entirely.*
 
 ---
@@ -98,11 +110,21 @@ Total Gaps Found: 1
 Total Lines Processed: 103
 System Status:         COMPROMISED
 Log Trust Confidence:  0%
-Reason:                CAUSALITY VIOLATION: 1 reverse-time jumps detected | SYNTHETIC FORGERY: 21 instances of Shannon Entropy collapse
+
+[!] INCIDENT NARRATIVE & MITRE MAPPING
+The system sustained a highly sophisticated data-poisoning attack. The attacker likely spoofed NTP timestamps to mask activities, mapping to MITRE T1070.006 (Indicator Removal: Timestomp). Synthetic log payloads injected to bypass volumetric detection, mapping to MITRE T1001 (Data Obfuscation). Secondary systems successfully achieved consensus (1 background activities confirmed during gaps), cryptographically proving intentional target log manipulation. Data exfiltration risk flagged: 80 sensitive PII leakage events caught, mapping to MITRE T1005 (Data from Local System).
+
+=== ANOMALY BREAKDOWN ===
+ID: GAP-01 | 07:53:42 -> 08:23:42 (1800s)
+[CAUSE]    Static threshold violated (Minimum enforced: 60s).
+[ALIBI]    1 Background events contradicted silence (Consensus Failure).
+[EVIDENCE] Entropy collapse computed globally for 21 instances.
+[EVIDENCE] Causality violated globally 1 times.
+[LEAKAGE]  PII Exfiltration filter triggered 80 times.
 
 === TIMELINE NORMALIZATION VISUALIZATION ===
 Start: 2024-10-15 08:00:02
-[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+[x...........................................................]
 End:   2024-10-15 08:23:42
 Legend: [.] OK   [!] LOW gap   [x] MEDIUM gap   [X] HIGH gap
 ============================================

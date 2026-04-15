@@ -1,7 +1,3 @@
-"""
-Tempora: Automated Log Integrity Monitor
-Deliverable: integrity_check.py
-"""
 import sys
 import os
 import argparse
@@ -73,6 +69,18 @@ class Config:
     ])
     safe_intervals: List[Tuple[datetime, datetime]] = field(default_factory=list)
 
+    @classmethod
+    def load_from_json(cls, path: str) -> "Config":
+        if not os.path.exists(path):
+            raise ConfigurationError(f"Config file not found: {path}")
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        cfg = cls()
+        if "min_gap_threshold" in data: cfg.min_gap_threshold = int(data["min_gap_threshold"])
+        if "max_reasonable_gap" in data: cfg.max_reasonable_gap = int(data["max_reasonable_gap"])
+        if "timestamp_formats" in data: cfg.timestamp_formats = data["timestamp_formats"]
+        return cfg
+
 DEFAULT_CONFIG = Config()
 
 @dataclass
@@ -80,6 +88,20 @@ class LogLine:
     timestamp: datetime
     raw_payload: str
     line_number: int
+
+class PIISweeper:
+    def __init__(self):
+        self.rules = {
+            "email": re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'),
+            "ipv4": re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b'),
+            "api_key": re.compile(r'(?i)(?:key|token|secret)[\'"]?\s*[:=]\s*[\'"]?([A-Za-z0-9\-_]{16,})')
+        }
+        self.total_leaks = 0
+
+    def scan(self, text: str):
+        for pattern in self.rules.values():
+            if pattern.search(text):
+                self.total_leaks += 1
 
 class LogParser:
     """
@@ -296,7 +318,7 @@ def format_duration(seconds: float) -> str:
 
 class ExplainabilityEngine:
     @staticmethod
-    def generate_narrative(gaps, causality_count, forgery_count, alibi_failures, status) -> str:
+    def generate_narrative(gaps, causality_count, forgery_count, alibi_failures, status, pii_leaks=0) -> str:
         narrative = []
         if status == SystemStatus.COMPROMISED:
             narrative.append("The system sustained a highly sophisticated data-poisoning attack.")
@@ -314,10 +336,13 @@ class ExplainabilityEngine:
         if alibi_failures > 0:
             narrative.append(f"Secondary systems successfully achieved consensus ({alibi_failures} background activities confirmed during gaps), cryptographically proving intentional target log manipulation.")
             
+        if pii_leaks > 0:
+            narrative.append(f"Data exfiltration risk flagged: {pii_leaks} sensitive PII leakage events caught, mapping to MITRE T1005 (Data from Local System).")
+            
         return " ".join(narrative)
 
 class Reporter:
-    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int, source_file: str = "unknown", file_hash: str = "N/A"):
+    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int, source_file: str = "unknown", file_hash: str = "N/A", pii_leaks: int = 0):
         self.gaps = gaps
         self.total_lines = total_lines
         self.file_start = file_start
@@ -329,6 +354,7 @@ class Reporter:
         self.forgery_count = forgery_count
         self.source_file = source_file
         self.file_hash = file_hash
+        self.pii_leaks = pii_leaks
         self.gap_durations = [g.duration_seconds for g in self.gaps]
 
     def _build_enriched_payload(self) -> Dict[str, Any]:
@@ -375,7 +401,8 @@ class Reporter:
                 "malformed_lines_skipped": self.malformed_count,
                 "causality_violations_detected": self.causality_count,
                 "shannon_entropy_collapses": self.forgery_count,
-                "alibi_failures_detected": alibi_failures
+                "alibi_failures_detected": alibi_failures,
+                "pii_leakage_events": getattr(self, 'pii_leaks', 0)
             },
             "trust_metrics": {
                 "system_status": status.value,
@@ -449,7 +476,7 @@ class Reporter:
         print(f"System Status:         {status_color}{status.value}{Colors.ENDC}")
         print(f"Log Trust Confidence:  {status_color}{trust}%{Colors.ENDC}")
         
-        narrative = ExplainabilityEngine.generate_narrative(self.gaps, self.causality_count, self.forgery_count, alibi_failures, status)
+        narrative = ExplainabilityEngine.generate_narrative(self.gaps, self.causality_count, self.forgery_count, alibi_failures, status, getattr(self, 'pii_leaks', 0))
         
         print(f"\n{Colors.WARNING}[!] INCIDENT NARRATIVE & MITRE MAPPING{Colors.ENDC}")
         print(narrative)
@@ -471,6 +498,8 @@ class Reporter:
                 print(f"[EVIDENCE] Entropy collapse computed globally for {self.forgery_count} instances.")
             if self.causality_count > 0:
                 print(f"[EVIDENCE] Causality violated globally {self.causality_count} times.")
+            if getattr(self, 'pii_leaks', 0) > 0:
+                print(f"[LEAKAGE]  PII Exfiltration filter triggered {self.pii_leaks} times.")
         
         if not self.file_start or not self.file_end: return
         total_span = (self.file_end - self.file_start).total_seconds()
@@ -848,7 +877,9 @@ def main():
     
     parser.add_argument("logfile", nargs='?', default="logfile.log", help="Path to the log file to analyze")
     parser.add_argument("--alibi", nargs='+', default=None, help="Secondary log files to cross-reference (The Alibi Protocol)")
-    parser.add_argument("--threshold", type=int, default=DEFAULT_CONFIG.min_gap_threshold, help="Minimum gap duration in seconds")
+    parser.add_argument("--threshold", type=int, default=None, help="Minimum gap duration in seconds")
+    parser.add_argument("--config", type=str, default=None, help="Path to JSON configuration file for custom layouts")
+    parser.add_argument("--scan-pii", action="store_true", help="Enable lightweight PII data leakage scanning")
     parser.add_argument("--format", type=str, choices=["text", "json", "csv", "html"], default="text", help="Output format (text, json, csv, or html)")
     parser.add_argument("--out", type=str, default=None, help="Path to save the output natively (bypasses Windows pipeline corruption)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose warnings")
@@ -877,7 +908,20 @@ def main():
         
         print("\n[*] Initializing continuous forensic pipeline...\n")
 
-    config = Config(min_gap_threshold=args.threshold)
+    if args.config:
+        try:
+            config = Config.load_from_json(args.config)
+        except Exception as e:
+            print_error(str(e))
+            sys.exit(1)
+    else:
+        config = Config()
+        
+    if args.threshold is not None:
+        config.min_gap_threshold = args.threshold
+        
+    pii_sweeper = PIISweeper() if args.scan_pii else None
+    
     log_parser = LogParser(custom_formats=config.timestamp_formats)
     detector = GapDetector(min_threshold=config.min_gap_threshold, max_gap=config.max_reasonable_gap, safe_intervals=config.safe_intervals)
     
@@ -901,6 +945,7 @@ def main():
         for line_num, line in enumerate(generate_lines(args.logfile), 1):
             log_line = log_parser.parse_line(line, line_num)
             if log_line:
+                if pii_sweeper: pii_sweeper.scan(log_line.raw_payload)
                 if not file_start: file_start = log_line.timestamp
                 file_end = log_line.timestamp
                 
@@ -942,7 +987,8 @@ def main():
             except Exception as e:
                 print_warning(f"[!] ALIBI PROTOCOL FAILED: Unhandled exception during cross-reference on '{alibi_file}': {e}")
 
-    reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries), source_file=args.logfile, file_hash=file_hash)
+    pii_leaks = getattr(pii_sweeper, 'total_leaks', 0) if args.scan_pii else 0
+    reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries), source_file=args.logfile, file_hash=file_hash, pii_leaks=pii_leaks)
     
     if args.format == "json":
         reporter.print_json()
