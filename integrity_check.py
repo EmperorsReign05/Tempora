@@ -294,6 +294,28 @@ def format_duration(seconds: float) -> str:
     if s > 0 or not parts: parts.append(f"{s}s")
     return " ".join(parts)
 
+class ExplainabilityEngine:
+    @staticmethod
+    def generate_narrative(gaps, causality_count, forgery_count, alibi_failures, status) -> str:
+        narrative = []
+        if status == SystemStatus.COMPROMISED:
+            narrative.append("The system sustained a highly sophisticated data-poisoning attack.")
+        elif status == SystemStatus.SUSPICIOUS:
+            narrative.append("The system exhibits suspicious temporal anomalies indicating potential probing or configuration failure.")
+        else:
+            narrative.append("No active hostility detected. System timeline is contiguous.")
+
+        if causality_count > 0:
+            narrative.append("The attacker likely spoofed NTP timestamps to mask activities, mapping to MITRE T1070.006 (Indicator Removal: Timestomp).")
+        
+        if forgery_count > 0:
+            narrative.append("Synthetic log payloads injected to bypass volumetric detection, mapping to MITRE T1001 (Data Obfuscation).")
+
+        if alibi_failures > 0:
+            narrative.append(f"Secondary systems successfully achieved consensus ({alibi_failures} background activities confirmed during gaps), cryptographically proving intentional target log manipulation.")
+            
+        return " ".join(narrative)
+
 class Reporter:
     def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int, source_file: str = "unknown", file_hash: str = "N/A"):
         self.gaps = gaps
@@ -426,7 +448,29 @@ class Reporter:
         print(f"Total Lines Processed: {self.total_lines}")
         print(f"System Status:         {status_color}{status.value}{Colors.ENDC}")
         print(f"Log Trust Confidence:  {status_color}{trust}%{Colors.ENDC}")
-        print(f"Reason:                {reason}")
+        
+        narrative = ExplainabilityEngine.generate_narrative(self.gaps, self.causality_count, self.forgery_count, alibi_failures, status)
+        
+        print(f"\n{Colors.WARNING}[!] INCIDENT NARRATIVE & MITRE MAPPING{Colors.ENDC}")
+        print(narrative)
+        
+        if self.gaps or self.causality_count > 0 or self.forgery_count > 0:
+            print(f"\n{Colors.BOLD}=== ANOMALY BREAKDOWN ==={Colors.ENDC}")
+            for i, gap in enumerate(self.gaps, 1):
+                print(f"ID: GAP-{i:02d} | {gap.start_time.strftime('%H:%M:%S')} -> {gap.end_time.strftime('%H:%M:%S')} ({int(gap.duration_seconds)}s)")
+                
+                if gap.duration_seconds > (mad * 3) and mad > 0:
+                    print(f"[CAUSE]    Statistical threshold explicitly violated (Deviation exceeds MAD limit: {mad:.1f}s).")
+                else:
+                    print(f"[CAUSE]    Static threshold violated (Minimum enforced: {self.threshold}s).")
+                
+                if gap.alibi_evidence_count > 0:
+                    print(f"[ALIBI]    {gap.alibi_evidence_count} Background events contradicted silence (Consensus Failure).")
+            
+            if self.forgery_count > 0:
+                print(f"[EVIDENCE] Entropy collapse computed globally for {self.forgery_count} instances.")
+            if self.causality_count > 0:
+                print(f"[EVIDENCE] Causality violated globally {self.causality_count} times.")
         
         if not self.file_start or not self.file_end: return
         total_span = (self.file_end - self.file_start).total_seconds()
@@ -784,7 +828,9 @@ class Reporter:
         print(html_template)
 
 def print_banner():
-    banner = """\033[96m████████╗███████╗███╗   ███╗██████╗  ██████╗ ██████╗  █████╗ 
+    if os.name == 'nt': os.system("") # Init VT100 colors on Windows CMD natively
+    banner = """
+\033[96m████████╗███████╗███╗   ███╗██████╗  ██████╗ ██████╗  █████╗ 
 ╚══██╔══╝██╔════╝████╗ ████║██╔══██╗██╔═══██╗██╔══██╗██╔══██╗
    ██║   █████╗  ██╔████╔██║██████╔╝██║   ██║██████╔╝███████║
    ██║   ██╔══╝  ██║╚██╔╝██║██╔═══╝ ██║   ██║██╔══██╗██╔══██║
