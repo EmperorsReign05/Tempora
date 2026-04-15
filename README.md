@@ -56,20 +56,20 @@ tempora --interactive
 tempora sample_logs\gaps.log
 ```
 
-**Run the Alibi Protocol against a secondary immutable log (e.g. syslog):**
+**Run the Alibi Protocol against multiple immutable secondary logs to build consensus:**
 ```bash
-tempora sample_logs\gaps.log --alibi sample_logs\clean.log
+tempora sample_logs\gaps.log --alibi sample_logs\clean.log auth.log syslog
 ```
 
-**Export strict structural metrics to JSON or CSV for automation/SIEM pipelines:**
+**Export strict structural metrics to JSON or CSV natively (bypasses Windows formatting bugs):**
 ```bash
-tempora sample_logs\gaps.log --format json > report.json
-tempora sample_logs\gaps.log --format csv > anomalies.csv
+tempora sample_logs\gaps.log --format json --out report.json
+tempora sample_logs\gaps.log --format csv --out anomalies.csv
 ```
 
 **Generate a professional HTML Forensic Dashboard for presentation and triage:**
 ```bash
-tempora sample_logs\gaps.log --format html > presentation_dashboard.html
+tempora sample_logs\gaps.log --format html --out presentation_dashboard.html
 ```
 
 **Adjust the gap detection threshold (default is 60 seconds):**
@@ -94,6 +94,7 @@ Total Gaps Found: 1
 ========================================
 === TEMPORA ADVANCED INTEGRITY MATRIX ===
 ========================================
+[✓] Chain of Custody (SHA-256): 38f1fea1ce45ba7243a04e960e18b9f6c9e9c0cb0e72a5362eed4fdeb73742bc
 Total Lines Processed: 103
 System Status:         COMPROMISED
 Log Trust Confidence:  0%

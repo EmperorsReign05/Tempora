@@ -9,6 +9,8 @@ import re
 import math
 import json
 import csv
+import hashlib
+import statistics
 from typing import Iterator, List, Tuple, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -249,15 +251,12 @@ def calculate_global_suspicion(gap_durations: List[float], total_lines: int, mal
     trust -= (low_count * 2)
     trust -= (medium_count * 5)
     trust -= (high_count * 15)
-    trust -= (max_gap_violations * 20)           # Catastrophic chronological jumps
-    trust -= (causality_count * 30)              # Back-in-time jumps (extreme red flag)
-    trust -= (forgery_count * 20)                # Evidence of synthetic injection mapping
-    trust -= (malformed_count * 0.1)             # Soft penalty for broken files
+    trust -= (max_gap_violations * 20)
+    trust -= (causality_count * 30)
+    trust -= (forgery_count * 20)
+    trust -= (malformed_count * 0.1) 
     
-    # Hard deductions
-    if alibi_failures > 0: trust -= 50         # Out-of-band evidence found confirming tampering
-    
-    # Ensure trust stays bounded between 0% - 100%
+    if alibi_failures > 0: trust -= 50
     trust = max(0, min(100, int(trust)))
 
     # Collect reasoning sentences based on detected events
@@ -296,7 +295,7 @@ def format_duration(seconds: float) -> str:
     return " ".join(parts)
 
 class Reporter:
-    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int, source_file: str = "unknown"):
+    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int, source_file: str = "unknown", file_hash: str = "N/A"):
         self.gaps = gaps
         self.total_lines = total_lines
         self.file_start = file_start
@@ -307,6 +306,7 @@ class Reporter:
         self.causality_count = causality_count
         self.forgery_count = forgery_count
         self.source_file = source_file
+        self.file_hash = file_hash
         self.gap_durations = [g.duration_seconds for g in self.gaps]
 
     def _build_enriched_payload(self) -> Dict[str, Any]:
@@ -340,6 +340,7 @@ class Reporter:
             "metadata": {
                 "analysis_timestamp": datetime.now().isoformat(),
                 "source_file": self.source_file,
+                "chain_of_custody_sha256": self.file_hash,
                 "file_start": self.file_start.isoformat() if self.file_start else None,
                 "file_end": self.file_end.isoformat() if self.file_end else None,
                 "total_lines_processed": self.total_lines,
@@ -379,6 +380,7 @@ class Reporter:
     def print_core_report(self):
         """Prints the STRICT REQUIRED deliverable format."""
         print(f"{Colors.BOLD}Source:{Colors.ENDC}    {self.source_file}")
+        print(f"{Colors.BOLD}SHA-256:{Colors.ENDC}   {self.file_hash}")
         print(f"{Colors.BOLD}Threshold:{Colors.ENDC} {self.threshold}s")
         print(f"{Colors.BOLD}Scanned:{Colors.ENDC}   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print()
@@ -406,7 +408,11 @@ class Reporter:
         print("\n" + Colors.OKCYAN + "="*40 + Colors.ENDC)
         print(f"{Colors.BOLD}=== TEMPORA ADVANCED INTEGRITY MATRIX ==={Colors.ENDC}")
         print(Colors.OKCYAN + "="*40 + Colors.ENDC)
+        print(f"[✓] Chain of Custody (SHA-256): {self.file_hash}")
         
+        mad_median = statistics.median(self.gap_durations) if self.gap_durations else 0
+        mad = statistics.median([abs(x - mad_median) for x in self.gap_durations]) if self.gap_durations else 0
+
         alibi_failures = sum(1 for g in self.gaps if g.alibi_evidence_count > 0)
         score, status, trust, reason = calculate_global_suspicion(
             self.gap_durations, self.total_lines, self.malformed_count, 
@@ -552,7 +558,7 @@ class Reporter:
         <header class="header">
             <div class="header-title">
                 <h1>Tempora Forensic Audit Report</h1>
-                <p>Enterprise Integrity Matrix & Audit Report</p>
+                <p>Enterprise Integrity Matrix & Audit Report <br/><span style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--success);" id="shaHash"></span></p>
             </div>
             <div class="export-group">
                 <button class="btn btn-primary" onclick="exportJSON()">&#x2193; Export JSON</button>
@@ -669,6 +675,10 @@ class Reporter:
         trustVal.textContent = t.log_trust_confidence_percent + '%';
         document.getElementById('linesValue').textContent = m.total_lines_processed.toLocaleString();
         document.getElementById('gapsValue').textContent = a.total_gaps_found;
+        
+        if (m.chain_of_custody_sha256 && m.chain_of_custody_sha256 !== "N/A") {{
+            document.getElementById('shaHash').innerHTML = '<strong>[✓] Chain of Custody (SHA-256):</strong> ' + m.chain_of_custody_sha256;
+        }}
 
         // Triggers
         document.getElementById('flaggedReason').textContent = t.suspicion_reason;
@@ -791,15 +801,18 @@ def main():
     )
     
     parser.add_argument("logfile", nargs='?', default="logfile.log", help="Path to the log file to analyze")
-    parser.add_argument("--alibi", type=str, default=None, help="Secondary log file to cross-reference (The Alibi Protocol)")
+    parser.add_argument("--alibi", nargs='+', default=None, help="Secondary log files to cross-reference (The Alibi Protocol)")
     parser.add_argument("--threshold", type=int, default=DEFAULT_CONFIG.min_gap_threshold, help="Minimum gap duration in seconds")
     parser.add_argument("--format", type=str, choices=["text", "json", "csv", "html"], default="text", help="Output format (text, json, csv, or html)")
+    parser.add_argument("--out", type=str, default=None, help="Path to save the output natively (bypasses Windows pipeline corruption)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose warnings")
     parser.add_argument("--interactive", action="store_true", help="Launch the interactive wizard")
                         
     args = parser.parse_args()
     
-    if hasattr(sys.stdout, "reconfigure"):
+    if args.out:
+        sys.stdout = open(args.out, 'w', encoding='utf-8')
+    elif hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding='utf-8')
     
     if args.format == "text":
@@ -813,8 +826,8 @@ def main():
         thr_in = input(f" [?] Minimum gap threshold in seconds [{args.threshold}]: ").strip()
         if thr_in.isdigit(): args.threshold = int(thr_in)
         
-        alibi_in = input(f" [?] (Optional) Path to a secondary log for the Alibi Protocol [None]: ").strip()
-        if alibi_in: args.alibi = alibi_in
+        alibi_in = input(f" [?] (Optional) Path to secondary logs for the Alibi Protocol (space-separated) [None]: ").strip()
+        if alibi_in: args.alibi = alibi_in.split()
         
         print("\n[*] Initializing continuous forensic pipeline...\n")
 
@@ -828,6 +841,15 @@ def main():
     max_gap_violations = 0
     file_start = None
     file_end = None
+    
+    file_hash = "N/A"
+    try:
+        h = hashlib.sha256()
+        with open(args.logfile, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b""): h.update(chunk)
+        file_hash = h.hexdigest()
+    except Exception:
+        pass
 
     try:
         for line_num, line in enumerate(generate_lines(args.logfile), 1):
@@ -859,21 +881,22 @@ def main():
 
     if args.alibi and gaps:
         alibi_parser = LogParser(custom_formats=config.timestamp_formats)
-        try:
-            for alibi_line_num, line in enumerate(generate_lines(args.alibi), 1):
-                alibi_log = alibi_parser.parse_line(line, alibi_line_num)
-                if alibi_log:
-                    for gap in gaps:
-                        if gap.start_time < alibi_log.timestamp < gap.end_time:
-                            gap.alibi_evidence_count += 1
-        except FileNotFoundError as e:
-            print_warning(f"[!] ALIBI PROTOCOL SKIPPED: Secondary log not found '{args.alibi}'")
-        except PermissionError:
-            print_warning(f"[!] ALIBI PROTOCOL SKIPPED: Insufficient permissions to read '{args.alibi}'")
-        except Exception as e:
-            print_warning(f"[!] ALIBI PROTOCOL FAILED: Unhandled exception during cross-reference: {e}")
+        for alibi_file in args.alibi:
+            try:
+                for alibi_line_num, line in enumerate(generate_lines(alibi_file), 1):
+                    alibi_log = alibi_parser.parse_line(line, alibi_line_num)
+                    if alibi_log:
+                        for gap in gaps:
+                            if gap.start_time < alibi_log.timestamp < gap.end_time:
+                                gap.alibi_evidence_count += 1
+            except FileNotFoundError:
+                print_warning(f"[!] ALIBI PROTOCOL SKIPPED: Secondary log not found '{alibi_file}'")
+            except PermissionError:
+                print_warning(f"[!] ALIBI PROTOCOL SKIPPED: Insufficient permissions to read '{alibi_file}'")
+            except Exception as e:
+                print_warning(f"[!] ALIBI PROTOCOL FAILED: Unhandled exception during cross-reference on '{alibi_file}': {e}")
 
-    reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries), source_file=args.logfile)
+    reporter = Reporter(gaps, total_lines, file_start, file_end, config.min_gap_threshold, malformed_count, max_gap_violations, len(detector.causality_violations), len(detector.forgeries), source_file=args.logfile, file_hash=file_hash)
     
     if args.format == "json":
         reporter.print_json()
