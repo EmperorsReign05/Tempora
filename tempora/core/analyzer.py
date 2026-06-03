@@ -134,16 +134,23 @@ class TemporaAnalyzer:
             with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                 first_line = f.readline().strip()
                 # If the line is just '{' or starts with '{' but doesn't end with '}', it's likely pretty-printed
-                if first_line == "{" or (first_line.startswith("{") and not first_line.endswith("}")):
+                if first_line == "{" or (
+                    first_line.startswith("{") and not first_line.endswith("}")
+                ):
                     is_pretty_json = True
 
             if is_pretty_json:
                 import json
-                print_warning("\n[!] PRETTY-PRINTED JSON DETECTED: Falling back to in-memory JSON parser. O(1) memory guarantees are disabled.")
+
+                print_warning(
+                    "\n[!] PRETTY-PRINTED JSON DETECTED: Falling back to in-memory JSON parser. O(1) memory guarantees are disabled."
+                )
                 with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                     try:
                         data = json.load(f)
-                        records = data.get("Records", []) if isinstance(data, dict) else []
+                        records = (
+                            data.get("Records", []) if isinstance(data, dict) else []
+                        )
                         if not records:
                             records = data if isinstance(data, list) else [data]
                         for r in records:
