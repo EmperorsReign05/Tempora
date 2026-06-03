@@ -1,6 +1,5 @@
-import pytest
-import os
 from tempora.config.settings import Config
+
 
 def test_yaml_config(tmp_path):
     yaml_content = """
@@ -23,6 +22,7 @@ tempora:
     assert config.business_hours is not None
     assert config.business_hours.start_time == "08:00"
     assert config.business_hours.ignore_weekends is True
+
 
 def test_json_config(tmp_path):
     json_content = '{"min_gap_threshold": 90}'

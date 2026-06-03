@@ -4,22 +4,23 @@ from typing import Optional
 from tempora.core.models import NormalizedEvent
 from tempora.parsers.base import BaseParser
 
+
 class CloudTrailParser(BaseParser):
     def parse_line(self, line: str, line_num: int) -> Optional[NormalizedEvent]:
         line = line.strip()
         # Fast exit for non-JSON lines
-        if not line or not line.startswith('{'):
+        if not line or not line.startswith("{"):
             return None
-        
+
         try:
             data = json.loads(line)
         except json.JSONDecodeError:
             return None
-            
+
         event_time_str = data.get("eventTime")
         if not event_time_str:
             return None
-            
+
         try:
             # CloudTrail uses ISO8601 e.g. 2024-10-14T10:00:00Z
             event_time_str = event_time_str.replace("Z", "+00:00")
@@ -32,7 +33,11 @@ class CloudTrailParser(BaseParser):
         actor = None
         user_identity = data.get("userIdentity", {})
         if isinstance(user_identity, dict):
-            actor = user_identity.get("arn") or user_identity.get("userName") or user_identity.get("principalId")
+            actor = (
+                user_identity.get("arn")
+                or user_identity.get("userName")
+                or user_identity.get("principalId")
+            )
 
         return NormalizedEvent(
             timestamp=timestamp,
@@ -42,5 +47,5 @@ class CloudTrailParser(BaseParser):
             source_ip=data.get("sourceIPAddress"),
             region=data.get("awsRegion"),
             event_name=data.get("eventName"),
-            event_source=data.get("eventSource")
+            event_source=data.get("eventSource"),
         )

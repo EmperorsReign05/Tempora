@@ -1,8 +1,9 @@
 import json
 
+
 def generate_html_dashboard(report_data: dict) -> str:
     json_data = json.dumps(report_data)
-    html_template = '''<!DOCTYPE html>
+    html_template = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -305,6 +306,5 @@ def generate_html_dashboard(report_data: dict) -> str:
         }}
     </script>
 </body>
-</html>'''
-    return html_template.replace('{json_data}', json_data)
-
+</html>"""
+    return html_template.replace("{json_data}", json_data)

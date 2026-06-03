@@ -5,27 +5,41 @@ from tempora.parsers.cloudtrail_parser import CloudTrailParser
 from tempora.config.settings import Config
 from tempora.reporting.reporter import Reporter
 
-def _build_analyzer(is_cloudtrail: bool = False, config_path: Optional[str] = None, scan_pii: bool = False, **kwargs: Any) -> TemporaAnalyzer:
+
+def _build_analyzer(
+    is_cloudtrail: bool = False,
+    config_path: Optional[str] = None,
+    scan_pii: bool = False,
+    **kwargs: Any
+) -> TemporaAnalyzer:
     if config_path:
         config = Config.load_from_file(config_path)
     else:
         config = Config()
-        
+
     for key, value in kwargs.items():
         if value is not None and hasattr(config, key):
             setattr(config, key, value)
-            
+
     if is_cloudtrail:
         parser = CloudTrailParser()
     else:
         parser = RegexParser(custom_formats=config.timestamp_formats)
-        
+
     return TemporaAnalyzer(parser=parser, config=config, scan_pii=scan_pii)
 
-def analyze(filepath: str, is_cloudtrail: bool = False, config_path: Optional[str] = None, scan_pii: bool = False, alibi_logs: Optional[List[str]] = None, **kwargs: Any) -> Reporter:
+
+def analyze(
+    filepath: str,
+    is_cloudtrail: bool = False,
+    config_path: Optional[str] = None,
+    scan_pii: bool = False,
+    alibi_logs: Optional[List[str]] = None,
+    **kwargs: Any
+) -> Reporter:
     """
     Public Developer API to analyze a static log file.
-    
+
     :param filepath: Path to the log file (text or JSON).
     :param is_cloudtrail: If True, uses the CloudTrail JSON parser instead of Regex.
     :param config_path: Optional path to a custom configuration JSON/YAML.
@@ -40,11 +54,20 @@ def analyze(filepath: str, is_cloudtrail: bool = False, config_path: Optional[st
         analyzer.run_alibi_protocol(alibi_logs)
     return reporter
 
-def analyze_stream(stream: Iterator[str], source_name: str = "stream", is_cloudtrail: bool = False, config_path: Optional[str] = None, scan_pii: bool = False, live_output: bool = True, **kwargs: Any) -> Reporter:
+
+def analyze_stream(
+    stream: Iterator[str],
+    source_name: str = "stream",
+    is_cloudtrail: bool = False,
+    config_path: Optional[str] = None,
+    scan_pii: bool = False,
+    live_output: bool = True,
+    **kwargs: Any
+) -> Reporter:
     """
     Public Developer API to analyze a live stream.
     Automatically catches KeyboardInterrupt to return a partial Reporter.
-    
+
     :param stream: Python generator or iterator yielding string events.
     :param source_name: Identifiable name for the stream.
     :param is_cloudtrail: If True, uses the CloudTrail JSON parser.
@@ -56,6 +79,8 @@ def analyze_stream(stream: Iterator[str], source_name: str = "stream", is_cloudt
     """
     analyzer = _build_analyzer(is_cloudtrail, config_path, scan_pii, **kwargs)
     try:
-        return analyzer.analyze_stream(stream, source_name=source_name, live_output=live_output)
+        return analyzer.analyze_stream(
+            stream, source_name=source_name, live_output=live_output
+        )
     except KeyboardInterrupt:
         return analyzer.generate_reporter(source_name=source_name)
