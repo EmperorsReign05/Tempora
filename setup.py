@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="tempora-forensics",
+    name="tempora-cli",
     version="2.0.0",
     description="Tempora: Automated Log Integrity Monitor and Forensic Dashboard",
     author="Mohammad Alman Farooqui",
