@@ -27,6 +27,16 @@ class Config:
     ])
     safe_intervals: List[Tuple[datetime, datetime]] = field(default_factory=list)
     business_hours: Optional[BusinessHours] = None
+    suspicious_events: List[str] = field(default_factory=lambda: [
+        "CreateAccessKey",
+        "AttachUserPolicy",
+        "AttachGroupPolicy",
+        "AttachRolePolicy",
+        "CreateLoginProfile",
+        "UpdateAssumeRolePolicy",
+        "PutUserPolicy"
+    ])
+    max_travel_speed_kmh: int = 1000
 
     @classmethod
     def load_from_file(cls, path: str) -> "Config":

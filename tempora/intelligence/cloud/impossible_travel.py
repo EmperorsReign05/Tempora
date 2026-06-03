@@ -2,12 +2,14 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from tempora.core.models import NormalizedEvent
 
+from tempora.config.settings import Config
+
 class ImpossibleTravelDetector:
     """
     Tracks source_ip, ASN, and GeoIP transitions to detect physically impossible authentications.
     """
-    def __init__(self, max_speed_kmh: int = 1000):
-        self.max_speed_kmh = max_speed_kmh
+    def __init__(self, config: Config):
+        self.max_speed_kmh = config.max_travel_speed_kmh
         # In a full implementation, we would use MaxMind GeoIP.
         # We will track last seen IPs per actor.
         self.actor_last_seen: Dict[str, dict] = {}

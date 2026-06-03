@@ -5,6 +5,10 @@ from tempora.core.models import NormalizedEvent
 from tempora.parsers.base import BaseParser
 
 class RegexParser(BaseParser):
+    """
+    Parses unstructured text logs by executing regex patterns 
+    against timestamp headers to extract chronological context.
+    """
     def __init__(self, custom_formats: List[str] = None):
         self.formats = custom_formats or []
         self._pattern = re.compile(

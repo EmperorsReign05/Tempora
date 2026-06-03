@@ -26,6 +26,10 @@ class SystemStatus(Enum):
 
 @dataclass
 class NormalizedEvent:
+    """
+    The canonical data model for a single audit event in Tempora.
+    Abstracts over Regex-based text logs and CloudTrail JSON objects.
+    """
     timestamp: datetime
     raw_payload: str
     line_number: int
@@ -50,6 +54,9 @@ class Forgery:
 
 @dataclass
 class Gap:
+    """
+    Represents an anomalous period of silence in the audit trail.
+    """
     start_time: datetime
     end_time: datetime
     duration_seconds: float

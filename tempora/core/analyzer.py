@@ -17,6 +17,10 @@ def print_warning(msg: str):
     print(msg, file=sys.stderr)
 
 class TemporaAnalyzer:
+    """
+    Core execution engine for Tempora. Orchestrates the flow of log events
+    through the underlying intelligence processors (GapDetector, IAMAnalyzer, etc.).
+    """
     def __init__(self, parser: BaseParser, config: Config, scan_pii: bool = False):
         self.parser = parser
         self.config = config
@@ -28,8 +32,8 @@ class TemporaAnalyzer:
             safe_intervals=config.safe_intervals,
             business_hours=config.business_hours
         )
-        self.iam_analyzer = IAMAnalyzer()
-        self.travel_detector = ImpossibleTravelDetector()
+        self.iam_analyzer = IAMAnalyzer(config)
+        self.travel_detector = ImpossibleTravelDetector(config)
         
         self.gaps: List[Gap] = []
         self.cloud_alerts: List[str] = []
@@ -40,6 +44,9 @@ class TemporaAnalyzer:
         self.file_end: Optional[datetime] = None
 
     def analyze_stream(self, lines: Iterator[str], source_name: str = "stream", live_output: bool = False) -> Reporter:
+        """
+        Processes an iterative stream of raw log lines in O(1) memory.
+        """
         for line_num, line in enumerate(lines, 1):
             log_line = self.parser.parse_line(line, line_num)
             if log_line:
@@ -92,6 +99,9 @@ class TemporaAnalyzer:
         )
 
     def analyze_file(self, filepath: str) -> Reporter:
+        """
+        Analyzes a static local file, automatically calculating its SHA-256 hash.
+        """
         file_hash = "N/A"
         try:
             h = hashlib.sha256()
@@ -112,6 +122,10 @@ class TemporaAnalyzer:
         return reporter
 
     def run_alibi_protocol(self, alibi_files: List[str]):
+        """
+        The Alibi Protocol cross-references primary gaps against secondary logs
+        to cryptographically prove intentional timeline suppression.
+        """
         if not self.gaps:
             return
 
