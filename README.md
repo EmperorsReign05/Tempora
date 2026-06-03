@@ -1,5 +1,9 @@
 # Tempora: Cloud-Native Forensic Log Integrity Framework
 
+[![PyPI version](https://badge.fury.io/py/tempora-cli.svg)](https://badge.fury.io/py/tempora-cli)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ![Tempora CLI Demo](demo.png)
 
 **Tempora** is an explainable forensic preprocessing and integrity verification framework for local and cloud-native audit systems. It mathematically analyzes large-scale log files, AWS CloudTrail events, and CloudWatch streams to detect structural tampering, time travel anomalies, and privilege escalation chains without relying on opaque ML models.
@@ -16,6 +20,43 @@
 - **Incident Narrative & MITRE Mapping**: Reconstructs anomalies into plain-English attack narratives mapped natively to MITRE ATT&CK techniques.
 - **Streaming Pipeline**: Tail files in real-time or natively poll AWS CloudWatch streams with zero latency.
 - **Developer API**: Import `tempora.analyze()` to integrate forensic intelligence directly into your custom data pipelines.
+
+---
+
+## Architecture
+
+Tempora utilizes a highly decoupled, generator-based architecture to process gigabytes of data with $O(1)$ memory footprint. 
+
+```mermaid
+graph TD
+    %% Input Sources
+    subgraph Data_Ingestion ["Data Ingestion"]
+        A1["Local Logs (Regex)"] --> B
+        A2["AWS CloudTrail (JSON)"] --> B
+        A3["AWS CloudWatch (Live Streams)"] --> B
+    end
+
+    %% Core Engine
+    subgraph Core_Engine ["Core Engine: O(1) Memory Generators"]
+        B["NormalizedEvent Layer"] --> C
+        C{"Intelligence Pipeline"}
+        C --> D1["The Alibi Protocol (Cross-Validation)"]
+        C --> D2["Shannon Entropy (Forgery Detection)"]
+        C --> D3["IAM Privilege Escalation"]
+        C --> D4["Impossible Travel (Geo-Velocity)"]
+    end
+
+    %% Outputs
+    subgraph Outputs ["Output & Reporting"]
+        D1 --> E["Explainable AI & MITRE Mapping"]
+        D2 --> E
+        D3 --> E
+        D4 --> E
+        E --> F1["CLI Terminal Dashboard"]
+        E --> F2["Interactive HTML (SIEM Export)"]
+        E --> F3["Programmatic JSON API"]
+    end
+```
 
 ---
 
