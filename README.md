@@ -25,14 +25,14 @@ Tempora is highly modular. You can install the zero-dependency core engine, or o
 
 **Option 1: Core Forensic Engine (Zero Dependencies)**
 ```bash
-pip install tempora
+pip install tempora-cli
 ```
 *(If checking out locally from source, use `pip install .`)*
 
 **Option 2: Cloud-Native Engine (AWS Integrations)**
 Installs `boto3` to unlock native CloudWatch streaming.
 ```bash
-pip install "tempora[aws]"
+pip install "tempora-cli[aws]"
 ```
 *(If checking out locally from source, use `pip install ".[aws]"`)*
 
