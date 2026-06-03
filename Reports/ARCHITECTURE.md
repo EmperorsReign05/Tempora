@@ -20,17 +20,21 @@ graph TD;
     H -->|Outputs CLI/JSON/ASCII/HTML| I[Standard Output]
 ```
 
-### Logic Modules (Single File Deliverable)
+### Core Package Structure & File Responsibilities
 
-While Tempora is legally distributed as a single automated script (`integrity_check.py`) to conform perfectly to the Ideathon requirements, it is architected under the hood using strictly decoupled object-oriented logic blocks:
+Tempora has been refactored into a professional-grade modular Python package. Below is the file structure and the responsibility of each module:
 
-1. **Orchestrator (`main`)**: Handles user arguments via `argparse`, sets up config overrides, and initializes the pipeline loop. Supports Interactive Mode natively.
-2. **Configuration Block (`Config`)**: Stores runtime fallbacks, Regex parsing templates (HDFS/ISO), default gap thresholds, and severity boundaries. Now fully supports dynamic `load_from_json()` initialization to bypass script edits completely while remaining strictly zero-dependency.
-3. **LogParser Class**: Iterates over regex strategies rapidly. Generates fully typed `LogLine` dataclass objects natively resolving payload text and timestamps flawlessly without crashing on malformed corruption.
-4. **PIISweeper Class**: Acts sequentially on unformatted string payloads extracting indicators of compromise (Email, IPv4, API tokens) natively using pre-compiled regex strategies, dynamically mapping them to MITRE T1005 logic hooks.
-5. **GapDetector Class**: Maintains internal strict mathematical state ($O(1)$ memory constraint). Explicitly tracks Causality Violations, limits Time Travel, and runs the rolling Shannon Entropy logic dynamically on the string payloads.
-6. **Severity Engine**: Assess duration scalars assigning static Severity Enum tags (`LOW`, `HIGH`). Deducts Trust Confidence penalties based on Alibi failures and Entropy limits.
-6. **Reporter Class**: Aggregates verified anomalies and gracefully sinks them to the deterministic string models required, executing the visual ASCII timeline, robust JSON/CSV pipelines, and rendering the highly structured HTML forensic dashboard.
+- **`tempora/cli.py`**: The Orchestrator. Handles user arguments via `argparse`, sets up config overrides, initializes the pipeline loop, and provides the Interactive Setup Wizard natively.
+- **`tempora/core/analyzer.py`** (`TemporaAnalyzer`): The central intelligence hub. It wires together the parser, gap detector, and PII sweeper to analyze log streams efficiently using generators.
+- **`tempora/core/models.py`**: Defines strict, typed `dataclass` objects ensuring type safety across the pipeline (e.g., `LogLine`, `Gap`, `SystemStatus`, `Severity`).
+- **`tempora/core/exceptions.py`**: Contains custom exceptions (like `LogParseError`, `ConfigurationError`) for graceful error handling.
+- **`tempora/parsers/regex_parser.py`** (`RegexParser`): Iterates over regex strategies rapidly to extract `datetime` payloads flawlessly without crashing on malformed corruption. Inherits from `parsers/base.py`.
+- **`tempora/intelligence/threshold.py`** (`GapDetector`): Maintains internal mathematical state with an $O(1)$ memory footprint. Tracks Causality Violations, catches time travel, and feeds payloads into the entropy calculator.
+- **`tempora/intelligence/entropy.py`**: Runs rolling Shannon Entropy logic dynamically on string payloads to catch synthetic script-generated logs.
+- **`tempora/intelligence/pii.py`** (`PIISweeper`): Acts sequentially on unformatted string payloads to extract indicators of compromise (Email, IPv4, API tokens) using pre-compiled regex strategies (MITRE T1005).
+- **`tempora/intelligence/scoring.py`**: Evaluates gap duration scalars and mathematically deducts Trust Confidence penalties based on causality, alibi failures, and entropy limits to compute a global system score.
+- **`tempora/reporting/reporter.py`** (`Reporter`): Aggregates verified anomalies and gracefully sinks them to the visual ASCII timeline, JSON/CSV pipelines, and rendering the highly structured HTML forensic dashboard.
+- **`tempora/config/settings.py`** (`Config`): Stores runtime fallbacks, default gap thresholds, and safe intervals. Supports dynamic `load_from_json()`.
 
 ## Stream Processing Strategy
 

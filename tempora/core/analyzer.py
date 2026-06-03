@@ -23,7 +23,8 @@ class TemporaAnalyzer:
         self.detector = GapDetector(
             min_threshold=config.min_gap_threshold, 
             max_gap=config.max_reasonable_gap, 
-            safe_intervals=config.safe_intervals
+            safe_intervals=config.safe_intervals,
+            business_hours=config.business_hours
         )
         
         self.gaps: List[Gap] = []
@@ -33,7 +34,7 @@ class TemporaAnalyzer:
         self.file_start: Optional[datetime] = None
         self.file_end: Optional[datetime] = None
 
-    def analyze_stream(self, lines: Iterator[str], source_name: str = "stream") -> Reporter:
+    def analyze_stream(self, lines: Iterator[str], source_name: str = "stream", live_output: bool = False) -> Reporter:
         for line_num, line in enumerate(lines, 1):
             log_line = self.parser.parse_line(line, line_num)
             if log_line:
@@ -47,12 +48,17 @@ class TemporaAnalyzer:
                      self.max_gap_violations += 1
 
                 for gap in self.detector.process_line(log_line):
+                    if live_output:
+                        print(f"⚠️ [STREAM] GAP DETECTED: {gap.start_time.strftime('%H:%M:%S')} -> {gap.end_time.strftime('%H:%M:%S')} ({int(gap.duration_seconds)}s) [{gap.severity.value}]")
                     self.gaps.append(gap)
             else:
                 self.malformed_count += 1
             
             self.total_lines = line_num
 
+        return self.generate_reporter(source_name)
+
+    def generate_reporter(self, source_name: str, file_hash: str = "N/A") -> Reporter:
         pii_leaks = getattr(self.pii_sweeper, 'total_leaks', 0) if self.scan_pii else 0
         return Reporter(
             gaps=self.gaps, 
@@ -65,7 +71,7 @@ class TemporaAnalyzer:
             causality_count=len(self.detector.causality_violations), 
             forgery_count=len(self.detector.forgeries), 
             source_file=source_name, 
-            file_hash="N/A", 
+            file_hash=file_hash, 
             pii_leaks=pii_leaks
         )
 

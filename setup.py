@@ -6,6 +6,9 @@ setup(
     description="Tempora: Automated Log Integrity Monitor and Forensic Dashboard",
     author="Mohammad Alman Farooqui",
     packages=find_packages(),
+    install_requires=[
+        "PyYAML>=6.0",
+    ],
     entry_points={
         "console_scripts": [
             "tempora=tempora.cli:main",

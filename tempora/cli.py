@@ -31,7 +31,8 @@ def main():
     parser.add_argument("logfile", nargs='?', default="logfile.log", help="Path to the log file to analyze")
     parser.add_argument("--alibi", nargs='+', default=None, help="Secondary log files to cross-reference (The Alibi Protocol)")
     parser.add_argument("--threshold", type=int, default=None, help="Minimum gap duration in seconds")
-    parser.add_argument("--config", type=str, default=None, help="Path to JSON configuration file for custom layouts")
+    parser.add_argument("--config", type=str, default=None, help="Path to YAML/JSON configuration file for custom layouts")
+    parser.add_argument("--stream", action="store_true", help="Enable streaming mode (tail -f style) for continuous log monitoring")
     parser.add_argument("--scan-pii", action="store_true", help="Enable lightweight PII data leakage scanning")
     parser.add_argument("--format", type=str, choices=["text", "json", "csv", "html"], default="text", help="Output format (text, json, csv, or html)")
     parser.add_argument("--out", type=str, default=None, help="Path to save the output natively")
@@ -63,7 +64,7 @@ def main():
 
     if args.config:
         try:
-            config = Config.load_from_json(args.config)
+            config = Config.load_from_file(args.config)
         except Exception as e:
             print_error(str(e))
             sys.exit(1)
@@ -77,7 +78,24 @@ def main():
     analyzer = TemporaAnalyzer(parser=log_parser, config=config, scan_pii=args.scan_pii)
     
     try:
-        reporter = analyzer.analyze_file(args.logfile)
+        if args.stream:
+            print(f"{Colors.OKCYAN}[*] Starting continuous stream analysis on {args.logfile}... (Press Ctrl+C to stop){Colors.ENDC}")
+            def tail_generator(path):
+                import time
+                with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                    while True:
+                        line = f.readline()
+                        if not line:
+                            time.sleep(0.5)
+                            continue
+                        yield line
+            try:
+                reporter = analyzer.analyze_stream(tail_generator(args.logfile), source_name=args.logfile, live_output=True)
+            except KeyboardInterrupt:
+                print(f"\n{Colors.WARNING}[!] Stream analysis stopped by user. Generating final report...{Colors.ENDC}")
+                reporter = analyzer.generate_reporter(args.logfile)
+        else:
+            reporter = analyzer.analyze_file(args.logfile)
     except FileNotFoundError as e:
         print_error(f"File not found: {args.logfile}")
         sys.exit(1)

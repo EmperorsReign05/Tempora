@@ -1,11 +1,24 @@
 from datetime import datetime
 from typing import List, Iterator, Tuple
 from tempora.core.models import Gap, LogLine, CausalityViolation, Forgery, Severity
+from tempora.config.settings import BusinessHours
 from tempora.intelligence.entropy import calculate_entropy
 import sys
 
 def print_warning(msg: str):
     print(msg, file=sys.stderr)
+
+def is_outside_business_hours(start: datetime, end: datetime, bh: BusinessHours) -> bool:
+    if bh.ignore_weekends and start.weekday() >= 5 and end.weekday() >= 5:
+        return True
+    bh_start_h, bh_start_m = map(int, bh.start_time.split(':'))
+    bh_end_h, bh_end_m = map(int, bh.end_time.split(':'))
+    from datetime import time
+    bh_start = time(bh_start_h, bh_start_m)
+    bh_end = time(bh_end_h, bh_end_m)
+    if end.time() < bh_start: return True
+    if start.time() > bh_end: return True
+    return False
 
 def calculate_severity(duration_seconds: float) -> Severity:
     if duration_seconds > 3600: return Severity.HIGH
@@ -13,9 +26,10 @@ def calculate_severity(duration_seconds: float) -> Severity:
     return Severity.LOW
 
 class GapDetector:
-    def __init__(self, min_threshold: int = 60, max_gap: int = 172800, safe_intervals=None):
+    def __init__(self, min_threshold: int = 60, max_gap: int = 172800, safe_intervals=None, business_hours: BusinessHours = None):
         self.min_threshold = min_threshold
         self.max_gap = max_gap
+        self.business_hours = business_hours
         self.safe_intervals = safe_intervals or []
         self.last_log_line = None
         
@@ -63,6 +77,8 @@ class GapDetector:
             elif duration >= self.min_threshold:
                 if not self._is_in_safe_interval(self.last_log_line.timestamp, log_line.timestamp):
                     severity = calculate_severity(duration)
+                    if self.business_hours and is_outside_business_hours(self.last_log_line.timestamp, log_line.timestamp, self.business_hours):
+                        severity = Severity.LOW
                     yield Gap(
                         start_time=self.last_log_line.timestamp,
                         end_time=log_line.timestamp,
