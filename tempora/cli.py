@@ -33,7 +33,10 @@ def main():
         "logfile", nargs="?", default="logfile.log", help="Path to the log file"
     )
     parser.add_argument(
-        "--alibi", nargs="+", default=None, help="Secondary log files to cross-reference"
+        "--alibi",
+        nargs="+",
+        default=None,
+        help="Secondary log files to cross-reference",
     )
     parser.add_argument(
         "--threshold", type=int, default=None, help="Minimum gap duration in seconds"
@@ -41,9 +44,7 @@ def main():
     parser.add_argument(
         "--config", type=str, default=None, help="Path to YAML/JSON configuration file"
     )
-    parser.add_argument(
-        "--stream", action="store_true", help="Enable streaming mode"
-    )
+    parser.add_argument("--stream", action="store_true", help="Enable streaming mode")
     parser.add_argument(
         "--cloudtrail", action="store_true", help="Parse AWS CloudTrail JSON events"
     )
@@ -78,16 +79,22 @@ def main():
         print_banner()
 
     if args.interactive:
-        print(f"{Colors.OKCYAN}{Colors.BOLD}[*] Welcome to the Tempora Interactive Setup Wizard{Colors.ENDC}")
+        print(
+            f"{Colors.OKCYAN}{Colors.BOLD}[*] Welcome to the Tempora Interactive Setup Wizard{Colors.ENDC}"
+        )
         log_in = input(f" [?] Path to the primary log file [{args.logfile}]: ").strip()
         if log_in:
             args.logfile = log_in
 
-        thr_in = input(f" [?] Minimum gap threshold in seconds [{args.threshold}]: ").strip()
+        thr_in = input(
+            f" [?] Minimum gap threshold in seconds [{args.threshold}]: "
+        ).strip()
         if thr_in.isdigit():
             args.threshold = int(thr_in)
 
-        alibi_in = input(" [?] (Optional) Path to secondary logs for the Alibi Protocol (space-separated) [None]: ").strip()
+        alibi_in = input(
+            " [?] (Optional) Path to secondary logs for the Alibi Protocol (space-separated) [None]: "
+        ).strip()
         if alibi_in:
             args.alibi = alibi_in.split()
         print("\n[*] Initializing forensic pipeline...\n")
@@ -95,8 +102,11 @@ def main():
     try:
         if args.aws_cloudwatch:
             from tempora.streaming.aws_stream import CloudWatchStreamer
+
             streamer = CloudWatchStreamer(log_group=args.aws_cloudwatch)
-            print(f"[*] Starting live AWS CloudWatch stream on {args.aws_cloudwatch}... (Press Ctrl+C to stop)")
+            print(
+                f"[*] Starting live AWS CloudWatch stream on {args.aws_cloudwatch}... (Press Ctrl+C to stop)"
+            )
             reporter = analyze_stream(
                 streamer.stream_events(),
                 source_name=f"cloudwatch:{args.aws_cloudwatch}",
@@ -106,12 +116,18 @@ def main():
                 live_output=True,
                 min_gap_threshold=args.threshold,
             )
-            print("\n[*] CloudWatch stream terminated by user. Generating final report...")
+            print(
+                "\n[*] CloudWatch stream terminated by user. Generating final report..."
+            )
 
         elif args.stream:
-            print(f"[*] Starting continuous stream analysis on {args.logfile}... (Press Ctrl+C to stop)")
+            print(
+                f"[*] Starting continuous stream analysis on {args.logfile}... (Press Ctrl+C to stop)"
+            )
+
             def follow_file(path):
                 import time
+
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     f.seek(0, os.SEEK_END)
                     while True:
