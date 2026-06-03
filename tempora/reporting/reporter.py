@@ -3,7 +3,7 @@ import json
 import csv
 import statistics
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from tempora.core.models import Gap, SystemStatus, Severity, Colors
 from tempora.intelligence.scoring import calculate_global_suspicion, ExplainabilityEngine
 from tempora.intelligence.threshold import calculate_severity
@@ -20,7 +20,7 @@ def format_duration(seconds: float) -> str:
     return ' '.join(parts)
 
 class Reporter:
-    def __init__(self, gaps: List[Gap], total_lines: int, file_start: datetime, file_end: datetime, threshold: int, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int, source_file: str = "unknown", file_hash: str = "N/A", pii_leaks: int = 0):
+    def __init__(self, gaps: List[Gap], total_lines: int, file_start: Optional[datetime], file_end: Optional[datetime], threshold: int, malformed_count: int, max_gap_violations: int, causality_count: int, forgery_count: int, source_file: str, file_hash: str, pii_leaks: int, cloud_alerts: List[str] = None):
         self.gaps = gaps
         self.total_lines = total_lines
         self.file_start = file_start
@@ -33,6 +33,7 @@ class Reporter:
         self.source_file = source_file
         self.file_hash = file_hash
         self.pii_leaks = pii_leaks
+        self.cloud_alerts = cloud_alerts or []
         self.gap_durations = [g.duration_seconds for g in self.gaps]
 
     def _build_enriched_payload(self) -> Dict[str, Any]:
@@ -80,7 +81,8 @@ class Reporter:
                 "causality_violations_detected": self.causality_count,
                 "shannon_entropy_collapses": self.forgery_count,
                 "alibi_failures_detected": alibi_failures,
-                "pii_leakage_events": getattr(self, 'pii_leaks', 0)
+                "pii_leakage_events": getattr(self, 'pii_leaks', 0),
+                "cloud_alerts": self.cloud_alerts
             },
             "trust_metrics": {
                 "system_status": status.value,
@@ -154,13 +156,20 @@ class Reporter:
         print(f"System Status:         {status_color}{status.value}{Colors.ENDC}")
         print(f"Log Trust Confidence:  {status_color}{trust}%{Colors.ENDC}")
         
-        narrative = ExplainabilityEngine.generate_narrative(self.gaps, self.causality_count, self.forgery_count, alibi_failures, status, getattr(self, 'pii_leaks', 0))
+        from tempora.reporting.narrative import NarrativeEngine
+        engine = NarrativeEngine()
+        narrative = engine.generate_narrative(self.gaps, self.cloud_alerts)
         
-        print(f"\n{Colors.WARNING}[!] INCIDENT NARRATIVE & MITRE MAPPING{Colors.ENDC}")
+        print("\n[!] INCIDENT NARRATIVE & MITRE MAPPING")
         print(narrative)
         
+        if self.cloud_alerts:
+            print("\n=== CLOUD ALERTS ===")
+            for alert in self.cloud_alerts:
+                print(alert)
+        
+        print(f"\n{Colors.BOLD}=== ANOMALY BREAKDOWN ==={Colors.ENDC}")
         if self.gaps or self.causality_count > 0 or self.forgery_count > 0:
-            print(f"\n{Colors.BOLD}=== ANOMALY BREAKDOWN ==={Colors.ENDC}")
             for i, gap in enumerate(self.gaps, 1):
                 print(f"ID: GAP-{i:02d} | {gap.start_time.strftime('%H:%M:%S')} -> {gap.end_time.strftime('%H:%M:%S')} ({int(gap.duration_seconds)}s)")
                 

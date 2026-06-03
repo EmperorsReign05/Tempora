@@ -9,6 +9,9 @@ setup(
     install_requires=[
         "PyYAML>=6.0",
     ],
+    extras_require={
+        "aws": ["boto3>=1.34.0"],
+    },
     entry_points={
         "console_scripts": [
             "tempora=tempora.cli:main",

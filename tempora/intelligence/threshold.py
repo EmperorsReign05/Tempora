@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Iterator, Tuple
-from tempora.core.models import Gap, LogLine, CausalityViolation, Forgery, Severity
+from tempora.core.models import Gap, NormalizedEvent, CausalityViolation, Forgery, Severity
 from tempora.config.settings import BusinessHours
 from tempora.intelligence.entropy import calculate_entropy
 import sys
@@ -44,7 +44,7 @@ class GapDetector:
             if start >= safe_start and end <= safe_end: return True
         return False
 
-    def process_line(self, log_line: LogLine) -> Iterator[Gap]:
+    def process_line(self, log_line: NormalizedEvent) -> Iterator[Gap]:
         self.total_lines_processed += 1
         
         # Estimate log payload by clipping expected timestamp prefix out

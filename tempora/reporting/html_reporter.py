@@ -2,8 +2,7 @@ import json
 
 def generate_html_dashboard(report_data: dict) -> str:
     json_data = json.dumps(report_data)
-        json_data = json.dumps(output)
-        html_template = f'''<!DOCTYPE html>
+    html_template = '''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -205,6 +204,14 @@ def generate_html_dashboard(report_data: dict) -> str:
         if (a.causality_violations_detected > 0) listHTML += '<li>Causality Violations (Time Jumps): ' + a.causality_violations_detected + '</li>';
         if (a.shannon_entropy_collapses > 0) listHTML += '<li>Shannon Entropy Collapses: ' + a.shannon_entropy_collapses + '</li>';
         if (a.malformed_lines_skipped > 0) listHTML += '<li>Malformed Lines Skipped: ' + a.malformed_lines_skipped + '</li>';
+        
+        if (a.cloud_alerts && a.cloud_alerts.length > 0) {
+            listHTML += '<li style="color:var(--danger); font-weight:bold; margin-top:0.5rem; list-style:none; margin-left:-1.25rem;">Cloud Forensic Alerts:</li>';
+            a.cloud_alerts.forEach(alert => {
+                listHTML += '<li style="color:var(--danger)">' + alert + '</li>';
+            });
+        }
+        
         if (listHTML === '') listHTML = '<li style="color:var(--success)">No advanced anomalous behaviors detected. System appears stable.</li>';
         anList.innerHTML = listHTML;
 
@@ -299,5 +306,5 @@ def generate_html_dashboard(report_data: dict) -> str:
     </script>
 </body>
 </html>'''
-        return html_template
+    return html_template.replace('{json_data}', json_data)
 

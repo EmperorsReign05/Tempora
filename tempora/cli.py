@@ -33,6 +33,8 @@ def main():
     parser.add_argument("--threshold", type=int, default=None, help="Minimum gap duration in seconds")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML/JSON configuration file for custom layouts")
     parser.add_argument("--stream", action="store_true", help="Enable streaming mode (tail -f style) for continuous log monitoring")
+    parser.add_argument("--cloudtrail", action="store_true", help="Parse AWS CloudTrail JSON events instead of Regex logs")
+    parser.add_argument("--aws-cloudwatch", type=str, default=None, help="Poll AWS CloudWatch log group directly (requires [aws] extras)")
     parser.add_argument("--scan-pii", action="store_true", help="Enable lightweight PII data leakage scanning")
     parser.add_argument("--format", type=str, choices=["text", "json", "csv", "html"], default="text", help="Output format (text, json, csv, or html)")
     parser.add_argument("--out", type=str, default=None, help="Path to save the output natively")
@@ -74,26 +76,46 @@ def main():
     if args.threshold is not None:
         config.min_gap_threshold = args.threshold
         
-    log_parser = RegexParser(custom_formats=config.timestamp_formats)
+    if args.cloudtrail:
+        from tempora.parsers.cloudtrail_parser import CloudTrailParser
+        log_parser = CloudTrailParser()
+    else:
+        log_parser = RegexParser(custom_formats=config.timestamp_formats)
+        
     analyzer = TemporaAnalyzer(parser=log_parser, config=config, scan_pii=args.scan_pii)
     
     try:
-        if args.stream:
-            print(f"{Colors.OKCYAN}[*] Starting continuous stream analysis on {args.logfile}... (Press Ctrl+C to stop){Colors.ENDC}")
-            def tail_generator(path):
+        if args.aws_cloudwatch:
+            from tempora.streaming.aws_stream import CloudWatchStreamer
+            streamer = CloudWatchStreamer(log_group=args.aws_cloudwatch)
+            print(f"[*] Starting live AWS CloudWatch stream on {args.aws_cloudwatch}... (Press Ctrl+C to stop)")
+            try:
+                reporter = analyzer.analyze_stream(streamer.stream_events(), source_name=f"cloudwatch:{args.aws_cloudwatch}", live_output=True)
+            except KeyboardInterrupt:
+                print("\n[*] CloudWatch stream terminated by user. Generating final report...")
+                reporter = analyzer.generate_reporter(source_name=f"cloudwatch:{args.aws_cloudwatch}")
+                reporter.print_advanced_summary()
+                
+        elif args.stream:
+            print(f"[*] Starting continuous stream analysis on {args.logfile}... (Press Ctrl+C to stop)")
+            def follow_file(path):
                 import time
+                import os
                 with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                    f.seek(0, os.SEEK_END)
                     while True:
                         line = f.readline()
                         if not line:
-                            time.sleep(0.5)
+                            time.sleep(0.1)
                             continue
                         yield line
+            streamer = follow_file(args.logfile)
             try:
-                reporter = analyzer.analyze_stream(tail_generator(args.logfile), source_name=args.logfile, live_output=True)
+                reporter = analyzer.analyze_stream(streamer, source_name=args.logfile, live_output=True)
             except KeyboardInterrupt:
-                print(f"\n{Colors.WARNING}[!] Stream analysis stopped by user. Generating final report...{Colors.ENDC}")
-                reporter = analyzer.generate_reporter(args.logfile)
+                print("\n[*] Stream terminated by user. Generating final report...")
+                reporter = analyzer.generate_reporter(source_name=args.logfile)
+                reporter.print_advanced_summary()
         else:
             reporter = analyzer.analyze_file(args.logfile)
     except FileNotFoundError as e:

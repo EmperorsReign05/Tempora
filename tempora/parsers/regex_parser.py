@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from typing import Optional, List
-from tempora.core.models import LogLine
+from tempora.core.models import NormalizedEvent
 from tempora.parsers.base import BaseParser
 
 class RegexParser(BaseParser):
@@ -24,7 +24,7 @@ class RegexParser(BaseParser):
                 continue
         return None
 
-    def parse_line(self, line: str, line_num: int) -> Optional[LogLine]:
+    def parse_line(self, line: str, line_num: int) -> Optional[NormalizedEvent]:
         line = line.strip()
         if not line: return None
         
@@ -33,5 +33,5 @@ class RegexParser(BaseParser):
             time_str = match.group('time_str')
             timestamp = self._parse_timestamp(time_str)
             if timestamp:
-                return LogLine(timestamp=timestamp, raw_payload=line, line_number=line_num)
+                return NormalizedEvent(timestamp=timestamp, raw_payload=line, line_number=line_num)
         return None

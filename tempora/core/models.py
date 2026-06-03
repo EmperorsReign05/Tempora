@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -25,10 +25,15 @@ class SystemStatus(Enum):
     COMPROMISED = "COMPROMISED"
 
 @dataclass
-class LogLine:
+class NormalizedEvent:
     timestamp: datetime
     raw_payload: str
     line_number: int
+    actor: Optional[str] = None
+    source_ip: Optional[str] = None
+    region: Optional[str] = None
+    event_name: Optional[str] = None
+    event_source: Optional[str] = None
 
 @dataclass
 class CausalityViolation:

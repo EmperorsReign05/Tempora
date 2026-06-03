@@ -2,10 +2,12 @@ import hashlib
 from typing import List, Iterator, Optional
 from datetime import datetime
 
-from tempora.core.models import LogLine, Gap
+from tempora.core.models import NormalizedEvent, Gap
 from tempora.parsers.base import BaseParser
 from tempora.intelligence.threshold import GapDetector
 from tempora.intelligence.pii import PIISweeper
+from tempora.intelligence.cloud.iam_analysis import IAMAnalyzer
+from tempora.intelligence.cloud.impossible_travel import ImpossibleTravelDetector
 from tempora.config.settings import Config
 from tempora.core.exceptions import LogParseError
 from tempora.reporting.reporter import Reporter
@@ -26,8 +28,11 @@ class TemporaAnalyzer:
             safe_intervals=config.safe_intervals,
             business_hours=config.business_hours
         )
+        self.iam_analyzer = IAMAnalyzer()
+        self.travel_detector = ImpossibleTravelDetector()
         
         self.gaps: List[Gap] = []
+        self.cloud_alerts: List[str] = []
         self.total_lines = 0
         self.malformed_count = 0
         self.max_gap_violations = 0
@@ -51,6 +56,16 @@ class TemporaAnalyzer:
                     if live_output:
                         print(f"⚠️ [STREAM] GAP DETECTED: {gap.start_time.strftime('%H:%M:%S')} -> {gap.end_time.strftime('%H:%M:%S')} ({int(gap.duration_seconds)}s) [{gap.severity.value}]")
                     self.gaps.append(gap)
+                    
+                iam_alert = self.iam_analyzer.process_event(log_line)
+                if iam_alert:
+                    self.cloud_alerts.append(iam_alert)
+                    if live_output: print(iam_alert)
+                    
+                travel_alert = self.travel_detector.process_event(log_line)
+                if travel_alert:
+                    self.cloud_alerts.append(travel_alert)
+                    if live_output: print(travel_alert)
             else:
                 self.malformed_count += 1
             
@@ -72,7 +87,8 @@ class TemporaAnalyzer:
             forgery_count=len(self.detector.forgeries), 
             source_file=source_name, 
             file_hash=file_hash, 
-            pii_leaks=pii_leaks
+            pii_leaks=pii_leaks,
+            cloud_alerts=self.cloud_alerts
         )
 
     def analyze_file(self, filepath: str) -> Reporter:

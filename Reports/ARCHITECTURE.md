@@ -26,7 +26,7 @@ Tempora has been refactored into a professional-grade modular Python package. Be
 
 - **`tempora/cli.py`**: The Orchestrator. Handles user arguments via `argparse`, sets up config overrides, initializes the pipeline loop, and provides the Interactive Setup Wizard natively.
 - **`tempora/core/analyzer.py`** (`TemporaAnalyzer`): The central intelligence hub. It wires together the parser, gap detector, and PII sweeper to analyze log streams efficiently using generators.
-- **`tempora/core/models.py`**: Defines strict, typed `dataclass` objects ensuring type safety across the pipeline (e.g., `LogLine`, `Gap`, `SystemStatus`, `Severity`).
+- **`tempora/core/models.py`**: Defines strict, typed `dataclass` objects ensuring type safety across the pipeline (e.g., `NormalizedEvent`, `Gap`, `SystemStatus`, `Severity`).
 - **`tempora/core/exceptions.py`**: Contains custom exceptions (like `LogParseError`, `ConfigurationError`) for graceful error handling.
 - **`tempora/parsers/regex_parser.py`** (`RegexParser`): Iterates over regex strategies rapidly to extract `datetime` payloads flawlessly without crashing on malformed corruption. Inherits from `parsers/base.py`.
 - **`tempora/intelligence/threshold.py`** (`GapDetector`): Maintains internal mathematical state with an $O(1)$ memory footprint. Tracks Causality Violations, catches time travel, and feeds payloads into the entropy calculator.
