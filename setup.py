@@ -6,7 +6,7 @@ with open(os.path.join(os.path.dirname(__file__), "README.md"), "r", encoding="u
 
 setup(
     name="tempora-cli",
-    version="2.0.1",
+    version="2.0.2",
     description="Tempora: Automated Log Integrity Monitor and Forensic Dashboard",
     long_description=long_description,
     long_description_content_type="text/markdown",
